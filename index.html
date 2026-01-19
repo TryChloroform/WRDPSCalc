@@ -207,7 +207,7 @@
             <input type="number" id="healthInput" placeholder="Or enter manually..." min="50000" max="20000000" value="300000">
         </div>
         
-        <button class="calculate-btn" onclick="calculateTTK()">Calculate Time to Kill</button>
+        <button class="calculate-btn" onclick="handleCalculateTTK()">Calculate Time to Kill</button>
         
         <div class="results" id="results">
             <h2>Results</h2>
@@ -256,8 +256,8 @@
         </div>
     </div>
     
+    <script src="app.js"></script>
     <script>
-        let weaponsData = {};
         let weaponCount = 0;
         const MAX_WEAPONS = 6;
         
@@ -310,22 +310,6 @@
             healthSlider.value = healthToSlider(value);
             healthDisplay.textContent = formatNumber(value);
         });
-        
-        async function loadWeaponsData() {
-            try {
-                const response = await fetch('/api/weapons-data');
-                if (!response.ok) throw new Error('Failed to load weapons data');
-                
-                weaponsData = await response.json();
-                console.log(`Loaded ${Object.keys(weaponsData).length} weapons`);
-            } catch (error) {
-                console.error('Error loading weapons data:', error);
-                alert('Failed to load weapons data from server.');
-            }
-        }
-        
-        // Load weapons data on page load
-        document.addEventListener('DOMContentLoaded', loadWeaponsData);
         
         function createSlotOptions() {
             const slots = new Set();
@@ -530,7 +514,7 @@
             }
         }
         
-        async function calculateTTK() {
+        function handleCalculateTTK() {
             const weaponItems = document.querySelectorAll('.weapon-item');
             if (weaponItems.length === 0) {
                 alert('Please add at least one weapon');
@@ -557,24 +541,7 @@
             const enemyHealth = parseInt(healthInput.value);
             
             try {
-                const response = await fetch('/api/calculate-ttk', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        enemyHealth: enemyHealth,
-                        weapons: weapons
-                    })
-                });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    alert(`Error: ${error.error}`);
-                    return;
-                }
-                
-                const result = await response.json();
+                const result = calculateTTK(enemyHealth, weapons);
                 
                 // Update results
                 document.getElementById('ttkValue').textContent = result.ttk.toFixed(2) + 's';
