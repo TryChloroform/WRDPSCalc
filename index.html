@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weapon TTK Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+                
+        .weapons-list {
+            margin-bottom: 20px;
+        }
+        
+        .weapon-item {
+            display: grid;
+            grid-template-columns: 40px 1fr 1fr 1fr 1fr 40px;
+            gap: 10px;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+            border-radius: 6px;
+        }
+        
+        .weapon-number {
+            width: 30px;
+            height: 30px;
+            background: #333;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .remove-btn:hover {
+            background: #c82333;
+        }
+        
+        .add-weapon-btn {
+            width: 100%;
+            padding: 12px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .add-weapon-btn:hover:not(:disabled) {
+            background: #218838;
+        }
+        
+        .add-weapon-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .health-section {
+            margin-bottom: 20px;
+        }
+        
+        .health-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .calculate-btn {
+            width: 100%;
+            padding: 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        
+        .calculate-btn:hover {
+            background: #0056b3;
+        }
+        
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+        
+        .results.show {
+            display: block;
+        }
+        
+        .results h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .ttk-box {
+            background: #e7f3ff;
+            padding: 20px;
+            border-radius: 6px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .ttk-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background: #f5f5f5;
+            font-weight: bold;
+        }
+        
+        .health-display {
+            display: inline-block;
+            background: #333;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Weapon TTK Calculator</h1>
+        
+        <div id="weaponsContainer" class="weapons-list"></div>
+        
+        <button class="add-weapon-btn" id="addWeaponBtn" onclick="addWeapon()">+ Add Weapon</button>
+        
+        <div class="health-section">
+            <label>Enemy Health <span class="health-display" id="healthDisplay">300,000</span></label>
+            <input type="range" id="healthSlider" min="0" max="100" value="50" step="0.1">
+            <input type="number" id="healthInput" placeholder="Or enter manually..." min="50000" max="20000000" value="300000">
+        </div>
+        
+        <button class="calculate-btn" onclick="calculateTTK()">Calculate Time to Kill</button>
+        
+        <div class="results" id="results">
+            <h2>Results</h2>
+            
+            <div class="ttk-box">
+                <p>Time to Kill</p>
+                <div class="ttk-value" id="ttkValue">0.00s</div>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Total Shots Fired</td>
+                        <td id="totalShots">0</td>
+                    </tr>
+                    <tr>
+                        <td>Total Damage Dealt</td>
+                        <td id="totalDamage">0</td>
+                    </tr>
+                    <tr>
+                        <td>Combined DPS</td>
+                        <td id="combinedDPS">0</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h3 style="margin-top: 20px; margin-bottom: 10px;">Per-Weapon Breakdown</h3>
+            <table id="weaponBreakdown">
+                <thead>
+                    <tr>
+                        <th>Weapon</th>
+                        <th>Shots</th>
+                        <th>Damage</th>
+                        <th>Reloads</th>
+                        <th>Reload Time</th>
+                    </tr>
+                </thead>
+                <tbody id="breakdownBody"></tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        let weaponsData = {};
+        let weaponCount = 0;
+        const MAX_WEAPONS = 6;
+        
+        const slotOrder = { "Light": 1, "Medium": 2, "Heavy": 3, "Beta": 4, "Alpha": 5 };
+        const MIN_HEALTH = 50000;
+        const MAX_HEALTH = 20000000;
+        const MID_HEALTH = 300000;
+        
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+        
+        function sliderToHealth(sliderValue) {
+            const position = sliderValue / 100;
+            if (position <= 0.5) {
+                const t = position * 2;
+                return MIN_HEALTH + (MID_HEALTH - MIN_HEALTH) * t;
+            } else {
+                const t = (position - 0.5) * 2;
+                const expFactor = Math.pow(t, 2.5);
+                return MID_HEALTH + (MAX_HEALTH - MID_HEALTH) * expFactor;
+            }
+        }
+        
+        function healthToSlider(health) {
+            if (health <= MID_HEALTH) {
+                const t = (health - MIN_HEALTH) / (MID_HEALTH - MIN_HEALTH);
+                return t * 50;
+            } else {
+                const t = (health - MID_HEALTH) / (MAX_HEALTH - MID_HEALTH);
+                const position = Math.pow(t, 1 / 2.5);
+                return 50 + position * 50;
+            }
+        }
+        
+        // Health slider setup
+        const healthSlider = document.getElementById('healthSlider');
+        const healthInput = document.getElementById('healthInput');
+        const healthDisplay = document.getElementById('healthDisplay');
+        
+        healthSlider.addEventListener('input', function() {
+            const health = Math.round(sliderToHealth(this.value));
+            healthDisplay.textContent = formatNumber(health);
+            healthInput.value = health;
+        });
+        
+        healthInput.addEventListener('input', function() {
+            let value = parseInt(this.value) || MIN_HEALTH;
+            value = Math.max(MIN_HEALTH, Math.min(MAX_HEALTH, value));
+            healthSlider.value = healthToSlider(value);
+            healthDisplay.textContent = formatNumber(value);
+        });
+        
+        async function loadWeaponsData() {
+            try {
+                const response = await fetch('/api/weapons-data');
+                if (!response.ok) throw new Error('Failed to load weapons data');
+                
+                weaponsData = await response.json();
+                console.log(`Loaded ${Object.keys(weaponsData).length} weapons`);
+            } catch (error) {
+                console.error('Error loading weapons data:', error);
+                alert('Failed to load weapons data from server.');
+            }
+        }
+        
+        // Load weapons data on page load
+        document.addEventListener('DOMContentLoaded', loadWeaponsData);
+        
+        function createSlotOptions() {
+            const slots = new Set();
+            Object.values(weaponsData).forEach(data => slots.add(data.Slot));
+            
+            const sortedSlots = Array.from(slots).sort((a, b) => 
+                (slotOrder[a] || 999) - (slotOrder[b] || 999)
+            );
+            
+            let html = '<option value="">-- Select Slot --</option>';
+            sortedSlots.forEach(slot => {
+                html += `<option value="${slot}">${slot}</option>`;
+            });
+            return html;
+        }
+        
+        function createTierOptions(slot) {
+            const tiers = new Set();
+            Object.values(weaponsData).forEach(data => {
+                if (data.Slot === slot) tiers.add(data.Tier);
+            });
+            
+            const sortedTiers = Array.from(tiers).sort((a, b) => parseInt(a) - parseInt(b));
+            
+            let html = '<option value="">-- Select Tier --</option>';
+            sortedTiers.forEach(tier => {
+                html += `<option value="${tier}">T${tier}</option>`;
+            });
+            return html;
+        }
+        
+        function createWeaponOptions(slot, tier) {
+            const weapons = [];
+            Object.entries(weaponsData).forEach(([name, data]) => {
+                if (data.Slot === slot && data.Tier === tier) {
+                    weapons.push(name);
+                }
+            });
+            
+            const sortedWeapons = weapons.sort();
+            
+            let html = '<option value="">-- Select Weapon --</option>';
+            sortedWeapons.forEach(weapon => {
+                html += `<option value="${weapon}">${weapon}</option>`;
+            });
+            return html;
+        }
+        
+        function addWeapon() {
+            if (weaponCount >= MAX_WEAPONS || Object.keys(weaponsData).length === 0) return;
+            
+            weaponCount++;
+            const weaponId = `weapon${weaponCount}`;
+            
+            const weaponDiv = document.createElement('div');
+            weaponDiv.className = 'weapon-item';
+            weaponDiv.id = weaponId;
+            weaponDiv.innerHTML = `
+                <div class="weapon-number">${weaponCount}</div>
+                <select id="${weaponId}_slot" onchange="updateTiers('${weaponId}')">
+                    ${createSlotOptions()}
+                </select>
+                <select id="${weaponId}_tier" onchange="updateWeapons('${weaponId}')" disabled>
+                    <option value="">-- Select Tier --</option>
+                </select>
+                <select id="${weaponId}_weapon" onchange="updateLevels('${weaponId}')" disabled>
+                    <option value="">-- Select Weapon --</option>
+                </select>
+                <select id="${weaponId}_level" disabled>
+                    <option value="">-- Select Level --</option>
+                </select>
+                <button class="remove-btn" onclick="removeWeapon('${weaponId}')">×</button>
+            `;
+            
+            document.getElementById('weaponsContainer').appendChild(weaponDiv);
+            updateAddButton();
+        }
+        
+        function removeWeapon(weaponId) {
+            document.getElementById(weaponId).remove();
+            weaponCount--;
+            updateAddButton();
+            renumberWeapons();
+        }
+        
+        function renumberWeapons() {
+            const items = document.querySelectorAll('.weapon-item');
+            items.forEach((item, index) => {
+                item.querySelector('.weapon-number').textContent = index + 1;
+            });
+        }
+        
+        function updateAddButton() {
+            const btn = document.getElementById('addWeaponBtn');
+            btn.disabled = weaponCount >= MAX_WEAPONS;
+            btn.textContent = weaponCount >= MAX_WEAPONS ? 'Maximum 6 Weapons' : '+ Add Weapon';
+        }
+        
+        function createLevelOptions(slot, weaponName) {
+            if (!weaponsData[weaponName]) return '<option value="">-- Select Level --</option>';
+            
+            const weapon = weaponsData[weaponName];
+            const levelKeys = Object.keys(weapon.levels);
+            
+            // Sort levels: Lv1-12, then MK2_Lv1-12, then MK3_Lv1
+            const sortedLevels = levelKeys.sort((a, b) => {
+                // Extract type and number
+                const aMatch = a.match(/^(Lv|MK2_Lv|MK3_Lv)(\d+)$/);
+                const bMatch = b.match(/^(Lv|MK2_Lv|MK3_Lv)(\d+)$/);
+                
+                if (!aMatch || !bMatch) return 0;
+                
+                const aType = aMatch[1];
+                const aNum = parseInt(aMatch[2]);
+                const bType = bMatch[1];
+                const bNum = parseInt(bMatch[2]);
+                
+                // Order: Lv < MK2_Lv < MK3_Lv
+                const typeOrder = { 'Lv': 0, 'MK2_Lv': 1, 'MK3_Lv': 2 };
+                if (typeOrder[aType] !== typeOrder[bType]) {
+                    return typeOrder[aType] - typeOrder[bType];
+                }
+                
+                // Within same type, sort numerically
+                return aNum - bNum;
+            });
+            
+            let html = '<option value="">-- Select Level --</option>';
+            
+            sortedLevels.forEach(level => {
+                let displayName = level.replace('_', ' ');
+                
+                // Cosmetic renaming based on slot
+                if (slot === 'Light' || slot === 'Medium' || slot === 'Heavy') {
+                    // MK1, MK2, MK3 naming
+                    if (level.startsWith('Lv')) {
+                        displayName = 'MK1_Lv' + level.substring(2);
+                    } else if (level.startsWith('MK2')) {
+                        displayName = 'MK2' + level.substring(3);
+                    } else if (level.startsWith('MK3')) {
+                        displayName = 'MK3' + level.substring(3);
+                    }
+                } else if (slot === 'Alpha' || slot === 'Beta') {
+                    // Lvl 1-25 naming
+                    if (level.startsWith('Lv')) {
+                        displayName = 'Lvl ' + level.substring(2);
+                    } else if (level.startsWith('MK2_Lv')) {
+                        const num = parseInt(level.substring(6)) + 12;
+                        displayName = 'Lvl ' + num;
+                    } else if (level.startsWith('MK3_Lv')) {
+                        displayName = 'Lvl 25';
+                    }
+                }
+                
+                html += `<option value="${level}">${displayName}</option>`;
+            });
+            
+            return html;
+        }
+        
+        function updateTiers(weaponId) {
+            const slotSelect = document.getElementById(`${weaponId}_slot`);
+            const tierSelect = document.getElementById(`${weaponId}_tier`);
+            const weaponSelect = document.getElementById(`${weaponId}_weapon`);
+            
+            if (slotSelect.value) {
+                tierSelect.innerHTML = createTierOptions(slotSelect.value);
+                tierSelect.disabled = false;
+                weaponSelect.innerHTML = '<option value="">-- Select Weapon --</option>';
+                weaponSelect.disabled = true;
+            } else {
+                tierSelect.disabled = true;
+                weaponSelect.disabled = true;
+            }
+        }
+        
+        function updateWeapons(weaponId) {
+            const slotSelect = document.getElementById(`${weaponId}_slot`);
+            const tierSelect = document.getElementById(`${weaponId}_tier`);
+            const weaponSelect = document.getElementById(`${weaponId}_weapon`);
+            
+            if (tierSelect.value) {
+                weaponSelect.innerHTML = createWeaponOptions(slotSelect.value, tierSelect.value);
+                weaponSelect.disabled = false;
+            } else {
+                weaponSelect.innerHTML = '<option value="">-- Select Weapon --</option>';
+                weaponSelect.disabled = true;
+            }
+        }
+        
+        function updateLevels(weaponId) {
+            const slotSelect = document.getElementById(`${weaponId}_slot`);
+            const weaponSelect = document.getElementById(`${weaponId}_weapon`);
+            const levelSelect = document.getElementById(`${weaponId}_level`);
+            
+            if (weaponSelect.value) {
+                levelSelect.innerHTML = createLevelOptions(slotSelect.value, weaponSelect.value);
+                levelSelect.disabled = false;
+            } else {
+                levelSelect.innerHTML = '<option value="">-- Select Level --</option>';
+                levelSelect.disabled = true;
+            }
+        }
+        
+        async function calculateTTK() {
+            const weaponItems = document.querySelectorAll('.weapon-item');
+            if (weaponItems.length === 0) {
+                alert('Please add at least one weapon');
+                return;
+            }
+            
+            const weapons = [];
+            for (const item of weaponItems) {
+                const weaponId = item.id;
+                const weaponName = document.getElementById(`${weaponId}_weapon`).value;
+                const level = document.getElementById(`${weaponId}_level`).value;
+                
+                if (!weaponName || !level) {
+                    alert('Please select weapon and level for all weapons');
+                    return;
+                }
+                
+                weapons.push({
+                    name: weaponName,
+                    level: level
+                });
+            }
+            
+            const enemyHealth = parseInt(healthInput.value);
+            
+            try {
+                const response = await fetch('/api/calculate-ttk', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        enemyHealth: enemyHealth,
+                        weapons: weapons
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    alert(`Error: ${error.error}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                
+                // Update results
+                document.getElementById('ttkValue').textContent = result.ttk.toFixed(2) + 's';
+                document.getElementById('totalShots').textContent = formatNumber(result.total_shots);
+                document.getElementById('totalDamage').textContent = formatNumber(result.total_damage);
+                document.getElementById('combinedDPS').textContent = formatNumber(result.dps);
+                
+                // Weapon breakdown
+                const breakdownBody = document.getElementById('breakdownBody');
+                breakdownBody.innerHTML = '';
+                
+                result.breakdown.forEach(weapon => {
+                    const row = breakdownBody.insertRow();
+                    row.innerHTML = `
+                        <td>${weapon.name}</td>
+                        <td>${formatNumber(weapon.bursts)}</td>
+                        <td>${formatNumber(weapon.damage)}</td>
+                        <td>${weapon.reloads}</td>
+                        <td>${weapon.reload_time.toFixed(2)}s</td>
+                    `;
+                });
+                
+                document.getElementById('results').classList.add('show');
+            } catch (error) {
+                console.error('Error calculating TTK:', error);
+                alert('Failed to calculate TTK: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
