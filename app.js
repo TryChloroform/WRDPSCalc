@@ -1,56 +1,12 @@
 let weaponsData = {};
 
 /* =========================
-   CSV LOADING
+   JSON LOADING
 ========================= */
-async function loadWeaponsCSV() {
-    const response = await fetch("weapons.csv");
-    const text = await response.text();
-
-    const rows = text.split("\n").map(r => r.trim()).filter(r => r.length > 0);
-    rows.shift();
-
-    rows.forEach(row => {
-        const cols = row.split(",");
-
-        if (cols.length < 41) return;
-
-        const name = cols[0].trim();
-
-        const weapon = {
-            ID: cols[1],
-            Tier: cols[2],
-            Range: cols[3],
-            Slot: cols[4],
-            Reload: parseFloat(cols[5]) || 0,
-            ShotInterval: parseFloat(cols[6]) || 0,
-            ShotSubinterval: parseFloat(cols[7]) || 0,
-            AOE: cols[8],
-            Ammo: parseInt(cols[9]) || 1,
-            ParticlesPerShot: parseInt(cols[10]) || 1,
-            Attribute2: cols[11],
-            Attribute3: cols[12],
-            Attribute4: cols[13],
-            Attribute5: cols[14],
-            Attribute6: cols[15],
-            levels: {}
-        };
-
-        const levelNames = [
-            "Lv1","Lv2","Lv3","Lv4","Lv5","Lv6","Lv7","Lv8","Lv9","Lv10","Lv11","Lv12",
-            "MK2_Lv1","MK2_Lv2","MK2_Lv3","MK2_Lv4","MK2_Lv5","MK2_Lv6",
-            "MK2_Lv7","MK2_Lv8","MK2_Lv9","MK2_Lv10","MK2_Lv11","MK2_Lv12",
-            "MK3_Lv1"
-        ];
-
-        levelNames.forEach((lvl, i) => {
-            const val = cols[16 + i];
-            if (val && val.trim()) weapon.levels[lvl] = parseFloat(val);
-        });
-
-        weaponsData[name] = weapon;
-    });
-
+async function loadWeaponsJSON() {
+    const response = await fetch("weapons.json");
+    weaponsData = await response.json();
+    
     console.log("Weapons loaded", Object.keys(weaponsData).length);
 }
 
@@ -71,23 +27,44 @@ function calculateTTK(enemyHealth, weaponConfigs) {
         const weaponData = weaponsData[cfg.name];
         if (!weaponData) throw new Error("Weapon not found");
 
-        const dmg = weaponData.levels[cfg.level];
+        const dmg = weaponData[cfg.level];
         if (dmg === undefined) throw new Error("Level not found");
 
-        const reloadsWhileFiring =
-            weaponData.Attribute4 &&
-            weaponData.Attribute4.trim().toLowerCase() === "reloads while firing";
+        const reloadsWhileFiring = weaponData.reload_while_firing === true;
+        
+        // Determine if this is a burst weapon
+        const isBurstWeapon = weaponData.particles_per_burst !== undefined && weaponData.particles_per_burst > 1;
+        
+        // Calculate effective particles per shot
+        const particlesPerShot = weaponData.particles_per_shot || 1;
+        const particlesPerBurst = weaponData.particles_per_burst || 1;
+        const numberOfParticles = weaponData.number_of_particles || 1;
+        
+        // Total damage per shot = base damage * particles * modifier
+        const damageModifier = weaponData.damage_modifier || 1;
+        const effectiveDamage = dmg * particlesPerShot * numberOfParticles * damageModifier;
+        
+        // Shot timing
+        let shotInterval, shotSubinterval;
+        if (isBurstWeapon) {
+            // For burst weapons: fire_interval is between shots in burst, burst_interval is between bursts
+            shotInterval = weaponData.burst_interval || 0;
+            shotSubinterval = weaponData.fire_interval || 0;
+        } else {
+            shotInterval = weaponData.fire_interval || 0;
+            shotSubinterval = 0;
+        }
 
         weapons.push({
             name: cfg.name,
-            damage: dmg,
-            shotInterval: weaponData.ShotInterval,
-            shotSubinterval: weaponData.ShotSubinterval,
-            reload: weaponData.Reload,
-            ammo: weaponData.Ammo,
-            particles: weaponData.ParticlesPerShot,
-            currentAmmo: weaponData.Ammo,
-            maxAmmo: weaponData.Ammo,
+            damage: effectiveDamage,
+            shotInterval: shotInterval,
+            shotSubinterval: shotSubinterval,
+            reload: weaponData.reload_time || 0,
+            ammo: weaponData.clip_size || 1,
+            particles: isBurstWeapon ? particlesPerBurst : 1,
+            currentAmmo: weaponData.clip_size || 1,
+            maxAmmo: weaponData.clip_size || 1,
             reloadsWhileFiring,
             nextShotTime: 0,
             totalBursts: 0,
@@ -169,5 +146,5 @@ function calculateTTK(enemyHealth, weaponConfigs) {
    INIT
 ========================= */
 document.addEventListener("DOMContentLoaded", async () => {
-    await loadWeaponsCSV();
+    await loadWeaponsJSON();
 });

@@ -313,7 +313,9 @@
         
         function createSlotOptions() {
             const slots = new Set();
-            Object.values(weaponsData).forEach(data => slots.add(data.Slot));
+            Object.values(weaponsData).forEach(data => {
+                if (data.slot) slots.add(data.slot);
+            });
             
             const sortedSlots = Array.from(slots).sort((a, b) => 
                 (slotOrder[a] || 999) - (slotOrder[b] || 999)
@@ -329,14 +331,19 @@
         function createTierOptions(slot) {
             const tiers = new Set();
             Object.values(weaponsData).forEach(data => {
-                if (data.Slot === slot) tiers.add(data.Tier);
+                if (data.slot === slot && data.tier) tiers.add(data.tier);
             });
             
-            const sortedTiers = Array.from(tiers).sort((a, b) => parseInt(a) - parseInt(b));
+            // Sort tiers: T1, T2, T3, T4, then 终极
+            const sortedTiers = Array.from(tiers).sort((a, b) => {
+                const tierOrder = { 'T1': 1, 'T2': 2, 'T3': 3, 'T4': 4, '终极': 5 };
+                return (tierOrder[a] || 999) - (tierOrder[b] || 999);
+            });
             
             let html = '<option value="">-- Select Tier --</option>';
             sortedTiers.forEach(tier => {
-                html += `<option value="${tier}">T${tier}</option>`;
+                const displayTier = tier === '终极' ? 'Ultimate' : tier;
+                html += `<option value="${tier}">${displayTier}</option>`;
             });
             return html;
         }
@@ -344,7 +351,7 @@
         function createWeaponOptions(slot, tier) {
             const weapons = [];
             Object.entries(weaponsData).forEach(([name, data]) => {
-                if (data.Slot === slot && data.Tier === tier) {
+                if (data.slot === slot && data.tier === tier) {
                     weapons.push(name);
                 }
             });
@@ -412,59 +419,37 @@
             if (!weaponsData[weaponName]) return '<option value="">-- Select Level --</option>';
             
             const weapon = weaponsData[weaponName];
-            const levelKeys = Object.keys(weapon.levels);
             
-            // Sort levels: Lv1-12, then MK2_Lv1-12, then MK3_Lv1
-            const sortedLevels = levelKeys.sort((a, b) => {
-                // Extract type and number
-                const aMatch = a.match(/^(Lv|MK2_Lv|MK3_Lv)(\d+)$/);
-                const bMatch = b.match(/^(Lv|MK2_Lv|MK3_Lv)(\d+)$/);
-                
-                if (!aMatch || !bMatch) return 0;
-                
-                const aType = aMatch[1];
-                const aNum = parseInt(aMatch[2]);
-                const bType = bMatch[1];
-                const bNum = parseInt(bMatch[2]);
-                
-                // Order: Lv < MK2_Lv < MK3_Lv
-                const typeOrder = { 'Lv': 0, 'MK2_Lv': 1, 'MK3_Lv': 2 };
-                if (typeOrder[aType] !== typeOrder[bType]) {
-                    return typeOrder[aType] - typeOrder[bType];
+            // Build level array from damage_1 to damage_25
+            const levels = [];
+            for (let i = 1; i <= 25; i++) {
+                const key = `damage_${i}`;
+                if (weapon[key] !== undefined) {
+                    levels.push({ key, level: i });
                 }
-                
-                // Within same type, sort numerically
-                return aNum - bNum;
-            });
+            }
             
             let html = '<option value="">-- Select Level --</option>';
             
-            sortedLevels.forEach(level => {
-                let displayName = level.replace('_', ' ');
+            levels.forEach(({ key, level }) => {
+                let displayName;
                 
                 // Cosmetic renaming based on slot
                 if (slot === 'Light' || slot === 'Medium' || slot === 'Heavy') {
                     // MK1, MK2, MK3 naming
-                    if (level.startsWith('Lv')) {
-                        displayName = 'MK1_Lv' + level.substring(2);
-                    } else if (level.startsWith('MK2')) {
-                        displayName = 'MK2' + level.substring(3);
-                    } else if (level.startsWith('MK3')) {
-                        displayName = 'MK3' + level.substring(3);
+                    if (level <= 12) {
+                        displayName = `MK1 Lv${level}`;
+                    } else if (level <= 24) {
+                        displayName = `MK2 Lv${level - 12}`;
+                    } else {
+                        displayName = `MK3 Lv1`;
                     }
                 } else if (slot === 'Alpha' || slot === 'Beta') {
                     // Lvl 1-25 naming
-                    if (level.startsWith('Lv')) {
-                        displayName = 'Lvl ' + level.substring(2);
-                    } else if (level.startsWith('MK2_Lv')) {
-                        const num = parseInt(level.substring(6)) + 12;
-                        displayName = 'Lvl ' + num;
-                    } else if (level.startsWith('MK3_Lv')) {
-                        displayName = 'Lvl 25';
-                    }
+                    displayName = `Lvl ${level}`;
                 }
                 
-                html += `<option value="${level}">${displayName}</option>`;
+                html += `<option value="${key}">${displayName}</option>`;
             });
             
             return html;
