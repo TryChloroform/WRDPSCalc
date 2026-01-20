@@ -62,12 +62,15 @@ EXCLUDE_KEYS = [
     "获取方式", "同类", "游戏简介", "限定前缀", "武器类型", "人工DPS",
     
     # Specific removals requested (Raw Chinese Keys)
-    "伤害修正1", 
+    "伤害修正1",
+    "伤害修正2",  # Added
+    "伤害修正3",  # Added
     "炮击",
     "弹道速度",
     "垂直自瞄阈值", 
     "水平自瞄阈值", 
-    "自瞄有效距离" 
+    "自瞄有效距离",
+    "过热停火时间"
 ]
 
 # Translation Maps
@@ -93,8 +96,10 @@ KEY_TRANSLATIONS = {
     "每次装弹数量": "reload_amount",
     "伤害修正": "damage_modifier",
     "过热触发时间": "overheat_time",
-    "过热停火时间": "cooldown_time",
-    "瞄准锁定": "aim_lock",  # Added mapping
+    "过热冷却时间": "overheat_cooldown_time",  # Updated
+    "瞄准锁定": "aim_lock",
+    "蓄能层数": "max_charge",  # Updated
+    "蓄能时间": "charge_time",
     
     # Attributes
     "弹药其他属性": "special_attributes",
@@ -130,21 +135,25 @@ VALUE_TRANSLATIONS = {
     "动能": "Kinetic",
     "实弹": "Kinetic",
     "音波": "Sonic",
+    "其他": "Other",  # Added
     # Effects (Updated)
     "无": "None",
     "追踪": "Homing",
     "冰冻": "Freeze",
     "定身": "Lock-down",
-    "定": "Lock-down",      # Added
+    "定": "Lock-down",
     "炸": "Blast",
     "爆炸": "Blast",
     "毒": "Corrosion",
     "吸血": "Life Steal",
     "锈蚀": "Rust",
-    "减速": "Slow",         # Added
-    "压制": "Suppression",  # Added
-    "盲": "Blind",          # Added
-    "冰爆": "Freeze Blast", # Added
+    "减速": "Slow",
+    "压制": "Suppression",
+    "盲": "Blind",
+    "冰爆": "Freeze Blast",
+    "脆化+锈蚀": "Fragility + Rust",  # Updated
+    "崩裂+锈蚀": "Crumble + Rust",  # Updated
+    "音爆": "Resonance",  # Updated
     "近距加伤": "Close Range Bonus",
     "光束弹射": "Chain",
     # Misc
