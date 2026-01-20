@@ -266,8 +266,11 @@
         const MAX_HEALTH = 20000000;
         const MID_HEALTH = 300000;
         
-        function formatNumber(num) {
-            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        function formatNumber(value, fallback = "0") {
+            if (value === undefined || value === null || Number.isNaN(value)) {
+                return fallback;
+            }
+            return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
         
         function sliderToHealth(sliderValue) {

@@ -21,124 +21,123 @@ function getWeaponsData() {
    TTK CALCULATION
 ========================= */
 function calculateTTK(enemyHealth, weaponConfigs) {
-    const weapons = [];
+    const safe = (v, d = 0) => Number.isFinite(v) ? v : d;
 
-    weaponConfigs.forEach(cfg => {
-        const weaponData = weaponsData[cfg.name];
-        if (!weaponData) throw new Error("Weapon not found");
+    const weapons = weaponConfigs.map(cfg => {
+        const data = weaponsData[cfg.name];
+        if (!data) throw new Error(`Weapon not found: ${cfg.name}`);
 
-        const dmg = weaponData[cfg.level];
-        if (dmg === undefined) throw new Error("Level not found");
+        let dmg;
 
-        const reloadsWhileFiring = weaponData.reload_while_firing === true;
-        
-        // Determine if this is a burst weapon
-        const isBurstWeapon = weaponData.particles_per_burst !== undefined && weaponData.particles_per_burst > 1;
-        
-        // Calculate effective particles per shot
-        const particlesPerShot = weaponData.particles_per_shot || 1;
-        const particlesPerBurst = weaponData.particles_per_burst || 1;
-        const numberOfParticles = weaponData.number_of_particles || 1;
-        
-        // Total damage per shot = base damage * particles * modifier
-        const damageModifier = weaponData.damage_modifier || 1;
-        const effectiveDamage = dmg * particlesPerShot * numberOfParticles * damageModifier;
-        
-        // Shot timing
-        let shotInterval, shotSubinterval;
-        if (isBurstWeapon) {
-            // For burst weapons: fire_interval is between shots in burst, burst_interval is between bursts
-            shotInterval = weaponData.burst_interval || 0;
-            shotSubinterval = weaponData.fire_interval || 0;
-        } else {
-            shotInterval = weaponData.fire_interval || 0;
-            shotSubinterval = 0;
+        if (typeof cfg.level === "number") {
+            dmg = data[`damage_${cfg.level}`];
+        } else if (typeof cfg.level === "string") {
+            dmg = data[cfg.level];
         }
 
-        weapons.push({
+        if (!Number.isFinite(dmg)) {
+            throw new Error(
+                `Damage missing for ${cfg.name} at level ${cfg.level}`
+            );
+        }
+
+
+        const shotsPerBurst = safe(data.particles_per_burst, 1);
+        const isBurst = shotsPerBurst > 1;
+
+        return {
             name: cfg.name,
-            damage: effectiveDamage,
-            shotInterval: shotInterval,
-            shotSubinterval: shotSubinterval,
-            reload: weaponData.reload_time || 0,
-            ammo: weaponData.clip_size || 1,
-            particles: isBurstWeapon ? particlesPerBurst : 1,
-            currentAmmo: weaponData.clip_size || 1,
-            maxAmmo: weaponData.clip_size || 1,
-            reloadsWhileFiring,
+
+            damagePerShot: dmg * safe(data.damage_modifier, 1),
+
+            fireInterval: safe(data.fire_interval, 0),
+            burstInterval: isBurst ? safe(data.burst_interval, 0) : 0,
+
+            shotsPerBurst,
+            shotsRemainingInBurst: shotsPerBurst,
+
+            ammo: safe(data.clip_size, Infinity),
+            maxAmmo: safe(data.clip_size, Infinity),
+
+            reloadTime: safe(data.reload_time, 0),
+            reloadsWhileFiring: data.reload_while_firing === true,
+
             nextShotTime: 0,
-            totalBursts: 0,
+
+            totalShots: 0,
             reloadCycles: 0,
             totalReloadTime: 0
-        });
+        };
     });
 
-    let currentHealth = enemyHealth;
     let currentTime = 0;
+    let currentHealth = enemyHealth;
     let iterations = 0;
-    const maxIterations = 1000000;
 
-    while (currentHealth > 0 && iterations < maxIterations) {
-        iterations++;
-
+    do {
         let nextEvent = Infinity;
-        weapons.forEach(w => {
+
+        for (const w of weapons) {
             if (w.nextShotTime < nextEvent) nextEvent = w.nextShotTime;
-        });
+        }
 
         if (nextEvent === Infinity) break;
         currentTime = nextEvent;
 
-        weapons.forEach(w => {
-            if (currentTime >= w.nextShotTime && w.currentAmmo > 0) {
-                currentHealth -= w.damage;
-                w.totalBursts++;
-                w.currentAmmo--;
+        for (const w of weapons) {
+            if (currentTime < w.nextShotTime) continue;
+            if (w.ammo <= 0) continue;
 
-                if (w.currentAmmo <= 0) {
-                    w.reloadCycles++;
-                    w.totalReloadTime += w.reload;
+            // Fire exactly ONE shot
+            currentHealth -= w.damagePerShot;
+            w.totalShots++;
+            w.ammo--;
+            w.shotsRemainingInBurst--;
 
-                    if (w.reloadsWhileFiring) {
-                        const timePerRound = w.reload / w.maxAmmo;
-                        w.currentAmmo = w.maxAmmo;
-                        w.nextShotTime = currentTime + timePerRound;
-                    } else {
-                        w.currentAmmo = w.maxAmmo;
-                        w.nextShotTime = currentTime + w.reload;
-                    }
-                } else {
-                    w.nextShotTime =
-                        currentTime +
-                        w.shotInterval +
-                        (w.particles - 1) * w.shotSubinterval;
-                }
+            // Reload
+            if (w.ammo === 0) {
+                w.reloadCycles++;
+                w.totalReloadTime += w.reloadTime;
+
+                w.ammo = w.maxAmmo;
+                w.shotsRemainingInBurst = w.shotsPerBurst;
+                w.nextShotTime = currentTime + w.reloadTime;
+                continue;
             }
-        });
-    }
 
-    const totalBursts = weapons.reduce((a, w) => a + w.totalBursts, 0);
-    const totalDamage = weapons.reduce((a, w) => a + w.totalBursts * w.damage, 0);
-    const dps = currentTime > 0 ? Math.round(totalDamage / currentTime) : 0;
+            // Burst timing
+            if (w.shotsRemainingInBurst > 0) {
+                // Next shot in burst
+                w.nextShotTime = currentTime + w.fireInterval;
+            } else {
+                // Burst finished
+                w.shotsRemainingInBurst = w.shotsPerBurst;
+                w.nextShotTime =
+                    currentTime +
+                    w.fireInterval +
+                    w.burstInterval;
+            }
+        } 
+    } while (currentHealth > 0 && iterations++ < 1_000_000);
 
-    if (totalDamage < enemyHealth) {
-        throw new Error("Damage insufficient");
-    }
-
-    const breakdown = weapons.map(w => ({
-        name: w.name,
-        bursts: w.totalBursts,
-        damage: Math.round(w.totalBursts * w.damage),
-        reloads: w.reloadCycles,
-        reload_time: Math.round(w.totalReloadTime * 100) / 100
-    }));
+    const totalShots = weapons.reduce((a, w) => a + w.totalShots, 0);
+    const totalDamage = weapons.reduce(
+        (a, w) => a + w.totalShots * w.damagePerShot,
+        0
+    );
 
     return {
         ttk: Math.round(currentTime * 100) / 100,
-        total_shots: totalBursts,
+        total_shots: totalShots,
         total_damage: Math.round(totalDamage),
-        dps,
-        breakdown
+        dps: currentTime > 0 ? Math.round(totalDamage / currentTime) : 0,
+        breakdown: weapons.map(w => ({
+            name: w.name,
+            shots: w.totalShots,
+            damage: Math.round(w.totalShots * w.damagePerShot),
+            reloads: w.reloadCycles,
+            reload_time: Math.round(w.totalReloadTime * 100) / 100
+        }))
     };
 }
 
