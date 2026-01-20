@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,31 +11,31 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: Arial, sans-serif;
             background: #f5f5f5;
             padding: 20px;
         }
-        
+
         .container {
             max-width: 900px;
             margin: 0 auto;
             background: white;
             padding: 30px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        
+
         h1 {
             margin-bottom: 20px;
             color: #333;
         }
-                
+
         .weapons-list {
             margin-bottom: 20px;
         }
-        
+
         .weapon-item {
             display: grid;
             grid-template-columns: 40px 1fr 1fr 1fr 1fr 40px;
@@ -45,7 +46,7 @@
             background: #f9f9f9;
             border-radius: 6px;
         }
-        
+
         .weapon-number {
             width: 30px;
             height: 30px;
@@ -57,7 +58,7 @@
             justify-content: center;
             font-weight: bold;
         }
-        
+
         select {
             width: 100%;
             padding: 8px;
@@ -65,7 +66,7 @@
             border-radius: 4px;
             font-size: 14px;
         }
-        
+
         .remove-btn {
             background: #dc3545;
             color: white;
@@ -74,11 +75,11 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        
+
         .remove-btn:hover {
             background: #c82333;
         }
-        
+
         .add-weapon-btn {
             width: 100%;
             padding: 12px;
@@ -90,31 +91,31 @@
             font-size: 16px;
             margin-bottom: 20px;
         }
-        
+
         .add-weapon-btn:hover:not(:disabled) {
             background: #218838;
         }
-        
+
         .add-weapon-btn:disabled {
             background: #ccc;
             cursor: not-allowed;
         }
-        
+
         .health-section {
             margin-bottom: 20px;
         }
-        
+
         .health-section label {
             display: block;
             margin-bottom: 8px;
             font-weight: bold;
         }
-        
+
         input[type="range"] {
             width: 100%;
             margin-bottom: 10px;
         }
-        
+
         input[type="number"] {
             width: 100%;
             padding: 8px;
@@ -122,7 +123,7 @@
             border-radius: 4px;
             font-size: 14px;
         }
-        
+
         .calculate-btn {
             width: 100%;
             padding: 15px;
@@ -133,25 +134,25 @@
             font-size: 18px;
             cursor: pointer;
         }
-        
+
         .calculate-btn:hover {
             background: #0056b3;
         }
-        
+
         .results {
             margin-top: 30px;
             display: none;
         }
-        
+
         .results.show {
             display: block;
         }
-        
+
         .results h2 {
             margin-bottom: 15px;
             color: #333;
         }
-        
+
         .ttk-box {
             background: #e7f3ff;
             padding: 20px;
@@ -159,30 +160,31 @@
             text-align: center;
             margin-bottom: 20px;
         }
-        
+
         .ttk-value {
             font-size: 36px;
             font-weight: bold;
             color: #007bff;
         }
-        
+
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
         }
-        
-        th, td {
+
+        th,
+        td {
             padding: 10px;
             text-align: left;
             border-bottom: 1px solid #ddd;
         }
-        
+
         th {
             background: #f5f5f5;
             font-weight: bold;
         }
-        
+
         .health-display {
             display: inline-block;
             background: #333;
@@ -191,32 +193,79 @@
             border-radius: 4px;
             margin-left: 10px;
         }
+
+        .timeline-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 6px;
+        }
+
+        .timeline-section h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .timeline-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .expand-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 20;
+            padding: 6px 10px;
+        }
+
+        .timeline-container.fullscreen {
+            position: fixed;
+            inset: 0;
+            background: white;
+            z-index: 9999;
+            padding: 12px;
+        }
+
+        .timeline-container.fullscreen canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+
+        canvas {
+            width: 100% !important;
+            height: auto !important;
+        }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 </head>
+
 <body>
     <div class="container">
         <h1>Weapon TTK Calculator</h1>
-        
+
         <div id="weaponsContainer" class="weapons-list"></div>
-        
+
         <button class="add-weapon-btn" id="addWeaponBtn" onclick="addWeapon()">+ Add Weapon</button>
-        
+
         <div class="health-section">
             <label>Enemy Health <span class="health-display" id="healthDisplay">300,000</span></label>
             <input type="range" id="healthSlider" min="0" max="100" value="50" step="0.1">
-            <input type="number" id="healthInput" placeholder="Or enter manually..." min="50000" max="20000000" value="300000">
+            <input type="number" id="healthInput" placeholder="Or enter manually..." min="50000" max="20000000"
+                value="300000">
         </div>
-        
+
         <button class="calculate-btn" onclick="handleCalculateTTK()">Calculate Time to Kill</button>
-        
+
         <div class="results" id="results">
             <h2>Results</h2>
-            
+
             <div class="ttk-box">
                 <p>Time to Kill</p>
                 <div class="ttk-value" id="ttkValue">0.00s</div>
             </div>
-            
+
             <table>
                 <thead>
                     <tr>
@@ -239,7 +288,7 @@
                     </tr>
                 </tbody>
             </table>
-            
+
             <h3 style="margin-top: 20px; margin-bottom: 10px;">Per-Weapon Breakdown</h3>
             <table id="weaponBreakdown">
                 <thead>
@@ -253,26 +302,38 @@
                 </thead>
                 <tbody id="breakdownBody"></tbody>
             </table>
+
+            <div class="timeline-section">
+                <h3>Timeline Visualizer</h3>
+
+
+                <div id="timelineContainer" class="timeline-container">
+                    <canvas id="timelineChart"></canvas>
+                    <button id="expandBtn" class="expand-btn">Expand</button>
+                </div>
+            </div>
         </div>
     </div>
-    
+
     <script src="app.js"></script>
     <script>
         let weaponCount = 0;
         const MAX_WEAPONS = 6;
-        
+
+        let timelineChart = null;
+
         const slotOrder = { "Light": 1, "Medium": 2, "Heavy": 3, "Beta": 4, "Alpha": 5 };
         const MIN_HEALTH = 50000;
         const MAX_HEALTH = 20000000;
         const MID_HEALTH = 300000;
-        
+
         function formatNumber(value, fallback = "0") {
             if (value === undefined || value === null || Number.isNaN(value)) {
                 return fallback;
             }
             return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
-        
+
         function sliderToHealth(sliderValue) {
             const position = sliderValue / 100;
             if (position <= 0.5) {
@@ -284,7 +345,7 @@
                 return MID_HEALTH + (MAX_HEALTH - MID_HEALTH) * expFactor;
             }
         }
-        
+
         function healthToSlider(health) {
             if (health <= MID_HEALTH) {
                 const t = (health - MIN_HEALTH) / (MID_HEALTH - MIN_HEALTH);
@@ -295,54 +356,54 @@
                 return 50 + position * 50;
             }
         }
-        
+
         // Health slider setup
         const healthSlider = document.getElementById('healthSlider');
         const healthInput = document.getElementById('healthInput');
         const healthDisplay = document.getElementById('healthDisplay');
-        
-        healthSlider.addEventListener('input', function() {
+
+        healthSlider.addEventListener('input', function () {
             const health = Math.round(sliderToHealth(this.value));
             healthDisplay.textContent = formatNumber(health);
             healthInput.value = health;
         });
-        
-        healthInput.addEventListener('input', function() {
+
+        healthInput.addEventListener('input', function () {
             let value = parseInt(this.value) || MIN_HEALTH;
             value = Math.max(MIN_HEALTH, Math.min(MAX_HEALTH, value));
             healthSlider.value = healthToSlider(value);
             healthDisplay.textContent = formatNumber(value);
         });
-        
+
         function createSlotOptions() {
             const slots = new Set();
             Object.values(weaponsData).forEach(data => {
                 if (data.slot) slots.add(data.slot);
             });
-            
-            const sortedSlots = Array.from(slots).sort((a, b) => 
+
+            const sortedSlots = Array.from(slots).sort((a, b) =>
                 (slotOrder[a] || 999) - (slotOrder[b] || 999)
             );
-            
+
             let html = '<option value="">-- Select Slot --</option>';
             sortedSlots.forEach(slot => {
                 html += `<option value="${slot}">${slot}</option>`;
             });
             return html;
         }
-        
+
         function createTierOptions(slot) {
             const tiers = new Set();
             Object.values(weaponsData).forEach(data => {
                 if (data.slot === slot && data.tier) tiers.add(data.tier);
             });
-            
+
             // Sort tiers: T1, T2, T3, T4, then 终极
             const sortedTiers = Array.from(tiers).sort((a, b) => {
                 const tierOrder = { 'T1': 1, 'T2': 2, 'T3': 3, 'T4': 4, '终极': 5 };
                 return (tierOrder[a] || 999) - (tierOrder[b] || 999);
             });
-            
+
             let html = '<option value="">-- Select Tier --</option>';
             sortedTiers.forEach(tier => {
                 const displayTier = tier === '终极' ? 'Ultimate' : tier;
@@ -350,7 +411,7 @@
             });
             return html;
         }
-        
+
         function createWeaponOptions(slot, tier) {
             const weapons = [];
             Object.entries(weaponsData).forEach(([name, data]) => {
@@ -358,22 +419,22 @@
                     weapons.push(name);
                 }
             });
-            
+
             const sortedWeapons = weapons.sort();
-            
+
             let html = '<option value="">-- Select Weapon --</option>';
             sortedWeapons.forEach(weapon => {
                 html += `<option value="${weapon}">${weapon}</option>`;
             });
             return html;
         }
-        
+
         function addWeapon() {
             if (weaponCount >= MAX_WEAPONS || Object.keys(weaponsData).length === 0) return;
-            
+
             weaponCount++;
             const weaponId = `weapon${weaponCount}`;
-            
+
             const weaponDiv = document.createElement('div');
             weaponDiv.className = 'weapon-item';
             weaponDiv.id = weaponId;
@@ -393,36 +454,36 @@
                 </select>
                 <button class="remove-btn" onclick="removeWeapon('${weaponId}')">×</button>
             `;
-            
+
             document.getElementById('weaponsContainer').appendChild(weaponDiv);
             updateAddButton();
         }
-        
+
         function removeWeapon(weaponId) {
             document.getElementById(weaponId).remove();
             weaponCount--;
             updateAddButton();
             renumberWeapons();
         }
-        
+
         function renumberWeapons() {
             const items = document.querySelectorAll('.weapon-item');
             items.forEach((item, index) => {
                 item.querySelector('.weapon-number').textContent = index + 1;
             });
         }
-        
+
         function updateAddButton() {
             const btn = document.getElementById('addWeaponBtn');
             btn.disabled = weaponCount >= MAX_WEAPONS;
             btn.textContent = weaponCount >= MAX_WEAPONS ? 'Maximum 6 Weapons' : '+ Add Weapon';
         }
-        
+
         function createLevelOptions(slot, weaponName) {
             if (!weaponsData[weaponName]) return '<option value="">-- Select Level --</option>';
-            
+
             const weapon = weaponsData[weaponName];
-            
+
             // Build level array from damage_1 to damage_25
             const levels = [];
             for (let i = 1; i <= 25; i++) {
@@ -431,12 +492,12 @@
                     levels.push({ key, level: i });
                 }
             }
-            
+
             let html = '<option value="">-- Select Level --</option>';
-            
+
             levels.forEach(({ key, level }) => {
                 let displayName;
-                
+
                 // Cosmetic renaming based on slot
                 if (slot === 'Light' || slot === 'Medium' || slot === 'Heavy') {
                     // MK1, MK2, MK3 naming
@@ -451,18 +512,18 @@
                     // Lvl 1-25 naming
                     displayName = `Lvl ${level}`;
                 }
-                
+
                 html += `<option value="${key}">${displayName}</option>`;
             });
-            
+
             return html;
         }
-        
+
         function updateTiers(weaponId) {
             const slotSelect = document.getElementById(`${weaponId}_slot`);
             const tierSelect = document.getElementById(`${weaponId}_tier`);
             const weaponSelect = document.getElementById(`${weaponId}_weapon`);
-            
+
             if (slotSelect.value) {
                 tierSelect.innerHTML = createTierOptions(slotSelect.value);
                 tierSelect.disabled = false;
@@ -473,12 +534,12 @@
                 weaponSelect.disabled = true;
             }
         }
-        
+
         function updateWeapons(weaponId) {
             const slotSelect = document.getElementById(`${weaponId}_slot`);
             const tierSelect = document.getElementById(`${weaponId}_tier`);
             const weaponSelect = document.getElementById(`${weaponId}_weapon`);
-            
+
             if (tierSelect.value) {
                 weaponSelect.innerHTML = createWeaponOptions(slotSelect.value, tierSelect.value);
                 weaponSelect.disabled = false;
@@ -487,12 +548,12 @@
                 weaponSelect.disabled = true;
             }
         }
-        
+
         function updateLevels(weaponId) {
             const slotSelect = document.getElementById(`${weaponId}_slot`);
             const weaponSelect = document.getElementById(`${weaponId}_weapon`);
             const levelSelect = document.getElementById(`${weaponId}_level`);
-            
+
             if (weaponSelect.value) {
                 levelSelect.innerHTML = createLevelOptions(slotSelect.value, weaponSelect.value);
                 levelSelect.disabled = false;
@@ -501,63 +562,337 @@
                 levelSelect.disabled = true;
             }
         }
-        
+
         function handleCalculateTTK() {
             const weaponItems = document.querySelectorAll('.weapon-item');
             if (weaponItems.length === 0) {
                 alert('Please add at least one weapon');
                 return;
             }
-            
+
             const weapons = [];
             for (const item of weaponItems) {
                 const weaponId = item.id;
                 const weaponName = document.getElementById(`${weaponId}_weapon`).value;
                 const level = document.getElementById(`${weaponId}_level`).value;
-                
+
                 if (!weaponName || !level) {
                     alert('Please select weapon and level for all weapons');
                     return;
                 }
-                
+
                 weapons.push({
                     name: weaponName,
                     level: level
                 });
             }
-            
+
             const enemyHealth = parseInt(healthInput.value);
-            
+
             try {
                 const result = calculateTTK(enemyHealth, weapons);
-                
+
                 // Update results
                 document.getElementById('ttkValue').textContent = result.ttk.toFixed(2) + 's';
                 document.getElementById('totalShots').textContent = formatNumber(result.total_shots);
                 document.getElementById('totalDamage').textContent = formatNumber(result.total_damage);
                 document.getElementById('combinedDPS').textContent = formatNumber(result.dps);
-                
+
                 // Weapon breakdown
                 const breakdownBody = document.getElementById('breakdownBody');
                 breakdownBody.innerHTML = '';
-                
+
                 result.breakdown.forEach(weapon => {
                     const row = breakdownBody.insertRow();
                     row.innerHTML = `
                         <td>${weapon.name}</td>
-                        <td>${formatNumber(weapon.bursts)}</td>
+                        <td>${formatNumber(weapon.shots)}</td>
                         <td>${formatNumber(weapon.damage)}</td>
                         <td>${weapon.reloads}</td>
                         <td>${weapon.reload_time.toFixed(2)}s</td>
                     `;
                 });
-                
+
                 document.getElementById('results').classList.add('show');
+
+                // Render timeline charts
+                renderTimelineCharts(result.timeline, enemyHealth);
             } catch (error) {
                 console.error('Error calculating TTK:', error);
                 alert('Failed to calculate TTK: ' + error.message);
             }
         }
+
+        function hexToRgb(hex) {
+            const clean = hex.replace('#', '');
+            const bigint = parseInt(clean, 16);
+            const r = (bigint >> 16) & 255;
+            const g = (bigint >> 8) & 255;
+            const b = bigint & 255;
+            return [r, g, b];
+        }
+
+
+        function renderTimelineCharts(timeline, maxHealth) {
+            const weaponColors = [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'
+            ];
+
+            if (timelineChart) timelineChart.destroy();
+
+            const healthRaw = timeline.enemyHealth;
+            const healthData = healthRaw.map(p => ({
+                x: p.time,
+                y: p.health / maxHealth
+            }));
+
+            const healthImportantTimes = new Set();
+            const healthDps = [];
+
+            for (let i = 0; i < healthRaw.length - 1; i++) {
+                const curr = healthRaw[i];
+                const next = healthRaw[i + 1];
+
+                const currGradient = i > 0
+                    ? (curr.health - healthRaw[i - 1].health) / (curr.time - healthRaw[i - 1].time)
+                    : 0;
+
+                const nextGradient = (next.health - curr.health) / (next.time - curr.time);
+
+                if (i === 0 || Math.abs(currGradient - nextGradient) > 0.001 || i === healthRaw.length - 2) {
+                    healthImportantTimes.add(curr.time);
+                }
+
+                const dps = Math.round(Math.abs(nextGradient));
+                healthDps.push(dps);
+            }
+
+            healthDps.push(0);
+
+            const weaponDatasets = [];
+
+            Object.entries(timeline.weapons).forEach(([weaponName, points], index) => {
+                const weaponData = weaponsData[weaponName];
+                const maxAmmo = weaponData ? weaponData.clip_size : 100;
+                const reloadsWhileFiring = weaponData.reload_while_firing === true;
+
+                const fullPoints = points.map(p => ({ x: p.time, y: p.ammo / maxAmmo }));
+
+                const importantPoints = [];
+                for (let i = 0; i < points.length; i++) {
+                    const curr = points[i];
+                    const prev = i > 0 ? points[i - 1] : null;
+
+                    if (i === 0 || i === points.length - 1) {
+                        importantPoints.push({ x: curr.time, y: curr.ammo / maxAmmo });
+                        continue;
+                    }
+
+                    if (reloadsWhileFiring) {
+                        if (curr.ammo < 0.01 && prev && prev.ammo > 0.01) {
+                            importantPoints.push({ x: curr.time, y: 0 });
+                        }
+                    } else {
+                        if (curr.ammo < 0.01 && prev && prev.ammo > 0.01) {
+                            importantPoints.push({ x: curr.time, y: 0 });
+                        }
+                        if (curr.ammo > maxAmmo * 0.99 && prev && prev.ammo < 0.01) {
+                            importantPoints.push({ x: curr.time, y: 1 });
+                        }
+                    }
+                }
+
+                const rgb = hexToRgb(weaponColors[index % weaponColors.length]);
+
+                weaponDatasets.push({
+                    label: weaponName,
+                    data: fullPoints,
+                    borderColor: weaponColors[index % weaponColors.length],
+                    backgroundColor: `rgba(${rgb.join(',')}, 0)`, // start with transparent
+                    borderWidth: 2,
+                    pointRadius: (ctx) => {
+                        const time = ctx.raw.x;
+                        const found = importantPoints.find(p => p.x === time);
+                        return found ? 6 : 0;
+                    },
+                    pointHoverRadius: 8,
+                    showLine: true,
+                    yAxisID: 'y-ammo',
+                    fill: true,
+                    clip: false,
+                    original: {
+                        borderColor: weaponColors[index % weaponColors.length],
+                        backgroundColor: `rgba(${rgb.join(',')}, 0.18)`
+                    }
+                });
+            });
+
+            const ctx = document.getElementById('timelineChart').getContext('2d');
+
+            const ttk = timeline.ttk || Math.max(
+                ...healthData.map(p => p.x),
+                ...Object.values(timeline.weapons).flat().map(p => p.time)
+            );
+
+            timelineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Enemy Health',
+                            data: healthData,
+                            borderColor: '#dc3545',
+                            backgroundColor: 'rgba(220, 53, 69, 0)', // start transparent
+                            borderWidth: 2,
+                            pointRadius: (ctx) => {
+                                const time = ctx.raw.x;
+                                return healthImportantTimes.has(time) ? 6 : 0;
+                            },
+                            pointHoverRadius: 8,
+                            showLine: true,
+                            yAxisID: 'y-health',
+                            fill: true,
+                            clip: false,
+                            dpsData: healthDps,
+                            original: {
+                                borderColor: '#dc3545',
+                                backgroundColor: 'rgba(220, 53, 69, 0.18)'
+                            }
+                        },
+                        ...weaponDatasets
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 2.5,
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    layout: {
+                        padding: {
+                            top: 40,
+                            right: 40,
+                            bottom: 40,
+                            left: 40
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            min: 0,
+                            max: ttk,
+                            title: { display: false },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                            ticks: { padding: 10 }
+                        },
+                        'y-health': {
+                            type: 'linear',
+                            position: 'left',
+                            beginAtZero: true,
+                            min: 0,
+                            max: 1,
+                            suggestedMin: -0.02,
+                            suggestedMax: 1.02,
+                            title: { display: false },
+                            ticks: { display: false },
+                            grid: { color: 'rgba(220, 53, 69, 0.1)' }
+                        },
+                        'y-ammo': {
+                            type: 'linear',
+                            position: 'right',
+                            beginAtZero: true,
+                            min: 0,
+                            max: 1,
+                            suggestedMin: -0.02,
+                            suggestedMax: 1.02,
+                            title: { display: false },
+                            ticks: { display: false },
+                            grid: { drawOnChartArea: false }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15,
+                                generateLabels: (chart) => {
+                                    return chart.data.datasets.map((ds, i) => ({
+                                        text: ds.label,
+                                        fillStyle: ds.borderColor,
+                                        strokeStyle: ds.borderColor,
+                                        hidden: !chart.isDatasetVisible(i),
+                                        datasetIndex: i
+                                    }));
+                                }
+                            },
+                            onHover: function (e, legendItem, legend) {
+                                e.native.target.style.cursor = 'pointer';
+                            },
+                            onLeave: function (e, legendItem, legend) {
+                                e.native.target.style.cursor = 'default';
+                            },
+                            onClick: function (e, legendItem, legend) {
+                                const chart = legend.chart;
+                                const idx = legendItem.datasetIndex;
+
+                                chart.data.datasets.forEach((ds, i) => {
+                                    if (i === idx) {
+                                        ds.backgroundColor = ds.original.backgroundColor;
+                                        ds.borderWidth = 2;
+                                        ds.order = 999;
+                                    } else {
+                                        ds.backgroundColor = ds.backgroundColor.replace(/, *[0-9.]+\)$/, ', 0)');
+                                        ds.borderWidth = 1;
+                                        ds.order = 0;
+                                    }
+                                });
+
+                                chart.update();
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    if (context.dataset.label === 'Enemy Health') {
+                                        const ratio = context.parsed.y;
+                                        const health = Math.round(ratio * maxHealth);
+                                        const dps = context.dataset.dpsData ? context.dataset.dpsData[context.dataIndex] : null;
+                                        return [
+                                            `Health: ${health} (${(ratio * 100).toFixed(1)}%)`,
+                                            `DPS: ${dps}`
+                                        ];
+                                    } else {
+                                        const ratio = context.parsed.y;
+                                        const weaponName = context.dataset.label;
+                                        const weaponData = weaponsData[weaponName];
+                                        const maxAmmo = weaponData ? weaponData.clip_size : 100;
+                                        const ammo = Math.round(ratio * maxAmmo);
+                                        return `${weaponName}: ${ammo}/${maxAmmo} (${(ratio * 100).toFixed(1)}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Default highlight Enemy Health
+            const enemyIndex = timelineChart.data.datasets.findIndex(ds => ds.label === 'Enemy Health');
+            if (enemyIndex >= 0) {
+                timelineChart.legend.options.onClick.call(
+                    timelineChart,
+                    null,
+                    { datasetIndex: enemyIndex },
+                    { chart: timelineChart }
+                );
+            }
+        }
+
     </script>
 </body>
 </html>
