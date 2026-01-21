@@ -275,7 +275,7 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
                 continue;
             }
 
-            // FIRE!
+            // Fire
             const shotDamage = w.damagePerShot;
             const greyDamage = shotDamage * w.greyFraction; 
             
@@ -284,7 +284,7 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
 
             // Clamping
             currentMaxHealth = Math.max(0, currentMaxHealth);
-            currentHealth = Math.min(currentHealth, currentMaxHealth);
+            currentHealth = Math.max(0, Math.min(currentHealth, currentMaxHealth));
 
             // Stats
             totalGreyDamage += greyDamage;
