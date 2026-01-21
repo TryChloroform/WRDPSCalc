@@ -1,5 +1,11 @@
 let weaponsData = {};
 
+const HEALING_MODULES = {
+    none: { rate: 0, duration: 0, cooldown: 0 },
+    repair: { rate: 0.05, duration: 5, cooldown: 20 },
+    advanced: { rate: 0.10, duration: 4, cooldown: 20 }
+};
+
 /* =========================
    JSON LOADING
 ========================= */
@@ -35,7 +41,7 @@ function getBypassFraction(weaponData, level) {
 /* =========================
    TTK CALCULATION
 ========================= */
-function calculateTTK(enemyHealth, enemyDefence, weaponConfigs) {
+function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = null) {
     const safe = (v, d = 0) => Number.isFinite(v) ? v : d;
 
     // Reset timeline tracking
@@ -75,6 +81,8 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs) {
         const effectiveDP = enemyDefence * (1 - bypass);
         const multiplier = 100 / (100 + effectiveDP);
 
+        const greyFraction = data.ammo_type === "Sonic" ? 1.0 : 0.4;
+
         return {
             name: cfg.name,
 
@@ -95,6 +103,8 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs) {
             reloadInterval: reloadsWhileFiring ? safe(data.reload_interval, 0) : 0,
             reloadAmount: reloadsWhileFiring ? safe(data.reload_amount, 0) : 0,
 
+            greyFraction,
+
             nextShotTime: 0,
             nextReloadTime: reloadsWhileFiring ? 0 : Infinity,
 
@@ -112,9 +122,16 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs) {
 
     let currentTime = 0;
     let currentHealth = enemyHealth;
+    let currentMaxHealth = enemyHealth;
     let iterations = 0;
 
+    let totalGreyDamage = 0;
     let totalMitigatedDamage = 0;
+
+    let healEvents = [];
+
+    let healCooldownReadyAt = -Infinity;
+    let activeHealEndTime = -Infinity;
 
     do {
         let nextEvent = Infinity;
@@ -149,16 +166,30 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs) {
             if (w.ammo < w.ammoPerShot) continue;
 
             // Fire exactly ONE shot
-            currentHealth -= w.damagePerShot;
-            totalMitigatedDamage += (w.rawDamagePerShot - w.damagePerShot);
+            const shotDamage = w.damagePerShot;
+            const greyDamage = shotDamage * w.greyFraction;
+            const normalDamage = shotDamage - greyDamage;
 
+            currentMaxHealth -= greyDamage;
+            currentHealth -= shotDamage;
+
+            currentMaxHealth = Math.max(0, currentMaxHealth);
+            currentHealth = Math.min(currentHealth, currentMaxHealth);
+
+            totalGreyDamage += greyDamage;
+            totalMitigatedDamage += (w.rawDamagePerShot - w.damagePerShot);
 
             w.totalShots++;
             w.ammo -= w.ammoPerShot;
             w.shotsRemainingInBurst--;
 
             // Record state changes
-            enemyHealthTimeline.push({ time: currentTime, health: currentHealth });
+            enemyHealthTimeline.push({
+                time: currentTime,
+                health: currentHealth,
+                maxHealth: currentMaxHealth
+            });
+
             weaponAmmoTimelines[w.name].push({ time: currentTime, ammo: w.ammo });
 
             // Handle reload mechanics
@@ -191,6 +222,29 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs) {
                 w.nextShotTime = currentTime + w.fireInterval + w.burstInterval;
             }
         }
+
+
+        // Healing events
+        const hpPercent = (currentHealth / currentMaxHealth) * 100;
+
+        // trigger healing
+        if (
+            healingConfig &&
+            healingConfig.rate > 0 &&
+            currentTime >= healCooldownReadyAt &&
+            hpPercent <= healingConfig.threshold
+        ) {
+            activeHealEndTime = currentTime + healingConfig.duration;
+            healCooldownReadyAt = currentTime + healingConfig.cooldown;
+            healEvents.push({ time: currentTime });
+        }
+
+        // apply healing
+        if (currentTime < activeHealEndTime) {
+            const healThisTick = currentMaxHealth * healingConfig.rate;
+            currentHealth = Math.min(currentHealth + healThisTick, currentMaxHealth);
+        }
+
     } while (currentHealth > 0 && iterations++ < 1_000_000);
 
     const totalShots = weapons.reduce((a, w) => a + w.totalShots, 0);
@@ -214,8 +268,10 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs) {
         })),
         timeline: {
             enemyHealth: enemyHealthTimeline,
-            weapons: weaponAmmoTimelines
-        }
+            weapons: weaponAmmoTimelines,
+            healTimeline: healEvents
+        },
+        heals: healEvents.length,
     };
 }
 
