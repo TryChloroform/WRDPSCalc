@@ -161,12 +161,74 @@ VALUE_TRANSLATIONS = {
     "否": False
 }
 
+# Cache for effect data
+EFFECT_DATA_CACHE = None
+
 def clean_value(text):
     text = re.sub(r'<ref.*?>.*?</ref>', '', text, flags=re.DOTALL)
     text = re.sub(r'<[^>]+>', '', text)
     return text.strip()
 
-def get_weapon_data(weapon_name):
+def fetch_effect_data():
+    """Fetch and cache the effect data from Fandom wiki"""
+    global EFFECT_DATA_CACHE
+    
+    if EFFECT_DATA_CACHE is not None:
+        return EFFECT_DATA_CACHE
+    
+    url = "https://warrobots.fandom.com/wiki/Template:MasterWeaponEffect?action=raw"
+    try:
+        print("Fetching effect data from Fandom wiki...")
+        response = requests.get(url, timeout=15)
+        if response.status_code == 200:
+            EFFECT_DATA_CACHE = response.text
+            return EFFECT_DATA_CACHE
+        else:
+            print(f"Failed to fetch effect data: HTTP {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"Error fetching effect data: {e}")
+        return None
+
+def get_effect_values(weapon_name, effect_data):
+    """Extract effect values (b1-b25) for a weapon from the effect data"""
+    if not effect_data:
+        return None
+    
+    # Convert weapon name: replace underscores with spaces
+    search_name = weapon_name.replace('_', ' ')
+    
+    # Pattern to find the weapon section
+    # Looking for |WeaponName = {{Stats Table ... }}
+    pattern = r'\|' + re.escape(search_name) + r'\s*=\s*\{\{Stats Table(.*?)\}\}'
+    match = re.search(pattern, effect_data, re.DOTALL | re.IGNORECASE)
+    
+    if not match:
+        return None
+    
+    section = match.group(1)
+    
+    # Extract b1-b25 values
+    effect_values = {}
+    for i in range(1, 26):
+        # Pattern for |b1 = value or |b1 = value ||
+        # Now includes optional commas in numbers (e.g., 5,100)
+        b_pattern = rf'\|b{i}\s*=\s*([\d,]+(?:\.\d+)?)'
+        b_match = re.search(b_pattern, section)
+        
+        if b_match:
+            value_str = b_match.group(1).strip()
+            try:
+                # Remove commas before converting to float
+                value_str = value_str.replace(',', '')
+                value = float(value_str)
+                effect_values[f"effect_{i}"] = value
+            except ValueError:
+                pass
+    
+    return effect_values if effect_values else None
+
+def get_weapon_data(weapon_name, effect_data=None):
     url = f"https://wiki.biligame.com/wwr/rest.php/v1/page/{weapon_name}"
     try:
         response = requests.get(url, timeout=10)
@@ -248,25 +310,44 @@ def get_weapon_data(weapon_name):
         # Default splash
         if "splash_radius" not in weapon_dict:
             weapon_dict["splash_radius"] = 0
+        
+        # --- FETCH EFFECT DATA ---
+        # If weapon has an effect type that isn't "None", try to fetch effect values
+        if "effect_type" in weapon_dict and weapon_dict["effect_type"] not in ["None", None]:
+            if effect_data:
+                effect_values = get_effect_values(weapon_name, effect_data)
+                if effect_values:
+                    weapon_dict.update(effect_values)
+                    print(f"  → Found {len(effect_values)} effect values for {weapon_name}")
+                else:
+                    print(f"  → No effect data found for {weapon_name}")
             
         return weapon_dict
-    except:
+    except Exception as e:
+        print(f"  → Error processing {weapon_name}: {e}")
         return None
 
 def main():
     final_data = {}
     total = len(WEAPONS)
     
+    # Fetch effect data once at the start
+    effect_data = fetch_effect_data()
+    if effect_data:
+        print("Effect data loaded successfully!\n")
+    else:
+        print("Warning: Could not load effect data. Effect values will not be included.\n")
+    
     for index, name in enumerate(WEAPONS):
         print(f"[{index+1}/{total}] Processing {name}...")
-        data = get_weapon_data(name)
+        data = get_weapon_data(name, effect_data)
         if data:
             final_data[name] = data
-        time.sleep(0.1) 
+        time.sleep(0.1)
 
     with open("weapons.json", "w", encoding="utf-8") as f:
         json.dump(final_data, f, ensure_ascii=False, indent=4)
-    print("\nFile 'weapons.json' has been generated with all weapons.")
+    print(f"\nFile 'weapons.json' has been generated with {len(final_data)} weapons.")
 
 if __name__ == "__main__":
     main()
