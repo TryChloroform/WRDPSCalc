@@ -23,8 +23,6 @@ const PILOT_SKILLS_DATA = {
         tiers: [0.0014, 0.0021, 0.0042, 0.0070],
         description: "Restores percentage of durability per second (Titan)"
     }
-    // Future proofing example:
-    // "Adamant Guardian": { type: "conditional_def", tiers: [25, 30, 35, 40], condition: "enemy_count" }
 };
 
 /* =========================
@@ -82,20 +80,27 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
         const isBurst = shotsPerBurst > 1;
         const reloadsWhileFiring = data.reload_while_firing === true;
         const baseDamage = dmg * safe(data.damage_modifier, 1);
+        const fireInterval = safe(data.fire_interval, 0);
+
+        // Accel Properties
+        const accelFireInterval = safe(data.accel_fire_interval, fireInterval);
+        const accelActivationTime = safe(data.accel_activation_time, 0);
 
         // Defence Calc
         const bypass = getBypassFraction(data, levelNumber);
         const effectiveDP = Math.max(0, enemyDefence * (1 - bypass));
         const multiplier = 100 / (100 + effectiveDP);
 
-        // Sonic Grey Damage logic: Sonic = 100% unhealable, Others = 40% unhealable
+        // Sonic Grey Damage logic
         const greyFraction = data.ammo_type === "Sonic" ? 1.0 : 0.4;
 
         return {
             name: cfg.name,
             rawDamagePerShot: baseDamage,
             damagePerShot: baseDamage * multiplier,
-            fireInterval: safe(data.fire_interval, 0),
+            fireInterval: fireInterval,
+            accelFireInterval: accelFireInterval,
+            accelActivationTime: accelActivationTime,
             burstInterval: isBurst ? safe(data.burst_interval, 0) : 0,
             shotsPerBurst,
             shotsRemainingInBurst: shotsPerBurst,
@@ -110,6 +115,9 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             nextShotTime: 0,
             nextReloadTime: reloadsWhileFiring ? 0 : Infinity,
             
+            // Accel State
+            continuousFireTimer: 0,
+            
             // Stats
             totalShots: 0,
             reloadCycles: 0,
@@ -120,7 +128,7 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
     // --- 2. Initialize Sim State ---
     let currentTime = 0;
     let currentHealth = enemyHealth;
-    let currentMaxHealth = enemyHealth; // Reduces when grey damage is taken
+    let currentMaxHealth = enemyHealth; 
     
     let totalGreyDamage = 0;
     let totalMitigatedDamage = 0;
@@ -131,31 +139,25 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
     let activeHealEndTime = -1;  
     
     // Pilot Skill State
-    let passiveHealRate = 0; // % per second
+    let passiveHealRate = 0; 
     
-    // Parse Pilot Skills
     if (pilotConfig && pilotConfig.length > 0) {
         pilotConfig.forEach(p => {
             const skillData = PILOT_SKILLS_DATA[p.name];
             if (!skillData) return;
-
-            // Tier indices: T1=0, T2=1, T3=2, T4=3
             const tierIdx = Math.max(0, Math.min(3, p.tier - 1));
             
             if (skillData.type === 'passive_heal') {
                 passiveHealRate += skillData.tiers[tierIdx];
             }
-            // Add future types here (e.g. conditional defence)
         });
     }
 
-    // Parse Active Module Thresholds
     let thresholds = [];
     if (healingConfig && healingConfig.thresholds) {
-        thresholds = healingConfig.thresholds.sort((a, b) => b - a); // Descending
+        thresholds = healingConfig.thresholds.sort((a, b) => b - a); 
     }
 
-    // Timeline Recorders
     const healthTimeline = [{ time: 0, health: enemyHealth, maxHealth: enemyHealth }];
     const ammoTimelines = {};
     weapons.forEach(w => ammoTimelines[w.name] = [{ time: 0, ammo: w.ammo }]);
@@ -165,39 +167,33 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
 
     // --- 3. Simulation Loop ---
     do {
-        // A. Find time of next event (shot or reload)
+        // A. Find time of next event
         let nextEventTime = Infinity;
 
         for (const w of weapons) {
-            // Check shot availability
             if (w.ammo >= w.ammoPerShot) {
                 if (w.nextShotTime < nextEventTime) nextEventTime = w.nextShotTime;
             } else {
                 if (w.nextShotTime < nextEventTime) nextEventTime = w.nextShotTime;
             }
 
-            // Check reload-while-firing ticks
             if (w.reloadsWhileFiring && w.ammo < w.maxAmmo) {
                 if (w.nextReloadTime < nextEventTime) nextEventTime = w.nextReloadTime;
             }
         }
 
-        // If no events left (or bug), break
         if (nextEventTime === Infinity) break;
         
         // B. Calculate Time Delta
         const dt = nextEventTime - currentTime;
         
-        // --- C. Handle Healing (Over the duration of dt) ---
+        // --- C. Handle Healing ---
         
-        // C1. Check Active Module Triggers (Start of window)
-        let activeModuleRate = 0;
-        
+        // C1. Check Active Module Triggers
         if (healingConfig && healingConfig.rate > 0) {
             const hpPercent = (currentHealth / currentMaxHealth) * 100;
             const isReady = currentTime >= healCooldownReadyAt;
             
-            // Trigger if ready AND below threshold
             if (isReady && thresholds.some(t => hpPercent <= t)) {
                 activeHealEndTime = currentTime + healingConfig.duration;
                 healCooldownReadyAt = currentTime + healingConfig.cooldown;
@@ -206,31 +202,21 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
         }
 
         // C2. Apply Healing
-        // We have two sources: Passive (Pilot) and Active (Module)
-        // Passive applies for the whole dt.
-        // Active applies only if within window.
-
         const healWindowStart = currentTime;
         const healWindowEnd = nextEventTime;
         
-        // 1. Passive Healing (Full duration)
+        // 1. Passive Healing
         if (passiveHealRate > 0) {
             const passiveAmount = currentMaxHealth * passiveHealRate * dt;
             currentHealth = Math.min(currentHealth + passiveAmount, currentMaxHealth);
         }
 
-        // 2. Active Healing (Conditional duration)
+        // 2. Active Healing
         if (healingConfig && healingConfig.rate > 0) {
-            // Intersection of [currentTime, nextEventTime] AND [healStart, activeHealEndTime]
-            // Since we just checked trigger, healStart is effectively activeHealEndTime - duration (roughly)
-            // Simpler: Just check overlap with activeHealEndTime
-            
             const effectiveEnd = Math.min(nextEventTime, activeHealEndTime);
-            const effectiveStart = Math.max(currentTime, activeHealEndTime - healingConfig.duration); // Approximation safety
             
-            // Logic: if currentTime < activeHealEndTime, we have some healing
             if (currentTime < activeHealEndTime) {
-                const duration = effectiveEnd - currentTime; // How much of this step is healed
+                const duration = effectiveEnd - currentTime;
                 if (duration > 0) {
                     const activeAmount = currentMaxHealth * healingConfig.rate * duration;
                     currentHealth = Math.min(currentHealth + activeAmount, currentMaxHealth);
@@ -238,13 +224,12 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             }
         }
 
-        // Move time forward
         currentTime = nextEventTime;
 
 
         // --- D. Process Weapon Events ---
         
-        // 1. Process Reloads (Reload-while-firing types)
+        // 1. Process Reloads (RWF)
         for (const w of weapons) {
             if (!w.reloadsWhileFiring) continue;
             if (currentTime >= w.nextReloadTime && w.ammo < w.maxAmmo) {
@@ -260,6 +245,9 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             
             // If out of ammo, handle reload initiation
             if (w.ammo < w.ammoPerShot) {
+                // RESET ACCELERATION ON RELOAD/STOP
+                w.continuousFireTimer = 0;
+
                 if (!w.reloadsWhileFiring) {
                     // Start Standard Reload
                     w.reloadCycles++;
@@ -270,12 +258,13 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
                     w.nextShotTime = currentTime + w.reloadTime;
                     ammoTimelines[w.name].push({ time: currentTime + w.reloadTime, ammo: w.ammo });
                 } else {
+                    // Wait for reload tick
                     w.nextShotTime = w.nextReloadTime;
                 }
                 continue;
             }
 
-            // Fire
+            // FIRE!
             const shotDamage = w.damagePerShot;
             const greyDamage = shotDamage * w.greyFraction; 
             
@@ -284,7 +273,7 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
 
             // Clamping
             currentMaxHealth = Math.max(0, currentMaxHealth);
-            currentHealth = Math.max(0, Math.min(currentHealth, currentMaxHealth));
+            currentHealth = Math.min(currentHealth, currentMaxHealth);
 
             // Stats
             totalGreyDamage += greyDamage;
@@ -301,13 +290,30 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             });
             ammoTimelines[w.name].push({ time: currentTime, ammo: w.ammo });
 
+            // --- ACCELERATION LOGIC START ---
+            // Determine current fire interval based on acceleration state
+            let currentFireInterval = w.fireInterval;
+            
+            // Check if acceleration is active
+            if (w.accelActivationTime > 0 && w.continuousFireTimer >= w.accelActivationTime) {
+                currentFireInterval = w.accelFireInterval;
+            }
+            // --- ACCELERATION LOGIC END ---
+
             // Schedule Next Shot
+            let timeToNextShot = 0;
+
             if (w.shotsRemainingInBurst > 0) {
-                w.nextShotTime = currentTime + w.fireInterval;
+                timeToNextShot = currentFireInterval;
             } else {
                 w.shotsRemainingInBurst = w.shotsPerBurst;
-                w.nextShotTime = currentTime + w.fireInterval + w.burstInterval;
+                timeToNextShot = currentFireInterval + w.burstInterval;
             }
+            
+            // Accumulate continuous fire duration for acceleration check
+            w.continuousFireTimer += timeToNextShot;
+            
+            w.nextShotTime = currentTime + timeToNextShot;
         }
 
     } while (currentHealth > 0 && iterations++ < MAX_ITERATIONS);
