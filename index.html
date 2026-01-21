@@ -288,10 +288,10 @@
                 </div>
                 
                 <div class="config-item">
-                    <label>Activation Thresholds (%)</label>
-                    <input type="text" id="healThresholds" placeholder="e.g. 50, 25">
+                    <label>Activation Threshold <span class="value-display" id="thresholdDisplay">99%</span></label>
+                    <input type="range" id="healThreshold" min="0" max="99" value="99" step="1" dir="rtl" style="width:100%">
                     <small style="color: #6c757d; font-size: 11px; display: block; margin-top: 4px;">
-                        Module activates when health drops below these % values (if off cooldown).
+                        Activates when health drops below this %. (Left = 99%, Right = 0%)
                     </small>
                 </div>
             </div>
@@ -392,20 +392,20 @@
             document.getElementById('defenceDisplay').textContent = v;
         });
 
+        // Healing Threshold Listener
+        document.getElementById('healThreshold').addEventListener('input', function() {
+            document.getElementById('thresholdDisplay').textContent = this.value + '%';
+        });
+
         // --- Config Getters ---
         function getHealingConfig() {
             const moduleKey = document.getElementById("healingModule").value;
-            const thresholdStr = document.getElementById("healThresholds").value;
             
-            // Parse comma separated thresholds: "50, 20" -> [50, 20]
-            const thresholds = thresholdStr.split(",")
-                .map(s => parseFloat(s.trim()))
-                .filter(n => !isNaN(n) && n > 0 && n <= 100);
-
-            // Default to 40% if repair selected but no threshold entered
-            if (moduleKey !== 'none' && thresholds.length === 0) {
-                thresholds.push(40);
-            }
+            // New logic: Read slider directly
+            const thresholdVal = parseFloat(document.getElementById("healThreshold").value);
+            
+            // We pass it as an array to maintain compatibility with the logic in app.js
+            const thresholds = [thresholdVal];
 
             const config = { ...HEALING_MODULES[moduleKey] };
             config.thresholds = thresholds;
