@@ -6,7 +6,7 @@ let weaponsData = {};
 async function loadWeaponsJSON() {
     const response = await fetch("weapons.json");
     weaponsData = await response.json();
-    
+
     console.log("Weapons loaded", Object.keys(weaponsData).length);
 }
 
@@ -17,10 +17,25 @@ function getWeaponsData() {
     return weaponsData;
 }
 
+function getBypassFraction(weaponData, level) {
+    if (weaponData.defense_bypass === true) return 1;
+
+    if (weaponData.slot === "Alpha") {
+        return 0.75 + (Math.min(level, 25) - 1) * (0.25 / 24);
+    }
+
+    if (weaponData.slot === "Beta") {
+        return 0.5 + (Math.min(level, 25) - 1) * (0.25 / 24);
+    }
+
+    return 0;
+}
+
+
 /* =========================
    TTK CALCULATION
 ========================= */
-function calculateTTK(enemyHealth, weaponConfigs) {
+function calculateTTK(enemyHealth, enemyDefence, weaponConfigs) {
     const safe = (v, d = 0) => Number.isFinite(v) ? v : d;
 
     // Reset timeline tracking
@@ -45,18 +60,29 @@ function calculateTTK(enemyHealth, weaponConfigs) {
             );
         }
 
+        const levelNumber =
+            typeof cfg.level === "string"
+                ? parseInt(cfg.level.replace("damage_", ""))
+                : cfg.level;
+
         const shotsPerBurst = safe(data.particles_per_burst, 1);
         const isBurst = shotsPerBurst > 1;
         const reloadsWhileFiring = data.reload_while_firing === true;
 
+        const baseDamage = dmg * safe(data.damage_modifier, 1);
+
+        const bypass = getBypassFraction(data, levelNumber);
+        const effectiveDP = enemyDefence * (1 - bypass);
+        const multiplier = 100 / (100 + effectiveDP);
+
         return {
             name: cfg.name,
 
-            damagePerShot: dmg * safe(data.damage_modifier, 1),
+            rawDamagePerShot: baseDamage,
+            damagePerShot: baseDamage * multiplier,
 
             fireInterval: safe(data.fire_interval, 0),
             burstInterval: isBurst ? safe(data.burst_interval, 0) : 0,
-
             shotsPerBurst,
             shotsRemainingInBurst: shotsPerBurst,
 
@@ -76,6 +102,7 @@ function calculateTTK(enemyHealth, weaponConfigs) {
             reloadCycles: 0,
             totalReloadTime: 0
         };
+
     });
 
     // Initialize weapon ammo timelines
@@ -86,6 +113,8 @@ function calculateTTK(enemyHealth, weaponConfigs) {
     let currentTime = 0;
     let currentHealth = enemyHealth;
     let iterations = 0;
+
+    let totalMitigatedDamage = 0;
 
     do {
         let nextEvent = Infinity;
@@ -109,7 +138,7 @@ function calculateTTK(enemyHealth, weaponConfigs) {
             // Add reload_amount to ammo
             w.ammo = Math.min(w.ammo + w.reloadAmount, w.maxAmmo);
             w.nextReloadTime = currentTime + w.reloadInterval;
-            
+
             // Record ammo change
             weaponAmmoTimelines[w.name].push({ time: currentTime, ammo: w.ammo });
         }
@@ -121,6 +150,9 @@ function calculateTTK(enemyHealth, weaponConfigs) {
 
             // Fire exactly ONE shot
             currentHealth -= w.damagePerShot;
+            totalMitigatedDamage += (w.rawDamagePerShot - w.damagePerShot);
+
+
             w.totalShots++;
             w.ammo -= w.ammoPerShot;
             w.shotsRemainingInBurst--;
@@ -138,7 +170,7 @@ function calculateTTK(enemyHealth, weaponConfigs) {
                     w.ammo = w.maxAmmo;
                     w.shotsRemainingInBurst = w.shotsPerBurst;
                     w.nextShotTime = currentTime + w.reloadTime;
-                    
+
                     // Record ammo refill
                     weaponAmmoTimelines[w.name].push({ time: currentTime + w.reloadTime, ammo: w.ammo });
                     continue;
@@ -158,7 +190,7 @@ function calculateTTK(enemyHealth, weaponConfigs) {
                 w.shotsRemainingInBurst = w.shotsPerBurst;
                 w.nextShotTime = currentTime + w.fireInterval + w.burstInterval;
             }
-        } 
+        }
     } while (currentHealth > 0 && iterations++ < 1_000_000);
 
     const totalShots = weapons.reduce((a, w) => a + w.totalShots, 0);
@@ -171,6 +203,7 @@ function calculateTTK(enemyHealth, weaponConfigs) {
         ttk: Math.round(currentTime * 100) / 100,
         total_shots: totalShots,
         total_damage: Math.round(totalDamage),
+        damage_mitigated: Math.round(totalMitigatedDamage),
         dps: currentTime > 0 ? Math.round(totalDamage / currentTime) : 0,
         breakdown: weapons.map(w => ({
             name: w.name,
@@ -194,7 +227,7 @@ let weaponAmmoTimelines = {};
 
 function recordTimelineSnapshot(time, health, weapons) {
     enemyHealthTimeline.push({ time, health });
-    
+
     weapons.forEach(w => {
         if (!weaponAmmoTimelines[w.name]) {
             weaponAmmoTimelines[w.name] = [];

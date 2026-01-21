@@ -250,10 +250,21 @@
         <button class="add-weapon-btn" id="addWeaponBtn" onclick="addWeapon()">+ Add Weapon</button>
 
         <div class="health-section">
-            <label>Enemy Health <span class="health-display" id="healthDisplay">300,000</span></label>
+            <label>
+                Enemy Health
+                <span class="health-display" id="healthDisplay">300,000</span>
+            </label>
             <input type="range" id="healthSlider" min="0" max="100" value="50" step="0.1">
             <input type="number" id="healthInput" placeholder="Or enter manually..." min="50000" max="20000000"
                 value="300000">
+        </div>
+        <div class="health-section">
+            <label>
+                Enemy Defence Points
+                <span class="health-display" id="defenceDisplay">0</span>
+            </label>
+            <input type="range" id="defenceSlider" min="0" max="900" value="0" step="1">
+            <input type="number" id="defenceInput" min="0" max="10000" value="0">
         </div>
 
         <button class="calculate-btn" onclick="handleCalculateTTK()">Calculate Time to Kill</button>
@@ -281,6 +292,10 @@
                     <tr>
                         <td>Total Damage Dealt</td>
                         <td id="totalDamage">0</td>
+                    </tr>
+                    <tr>
+                        <td>Damage Mitigated by Defence</td>
+                        <td id="damageMitigated">0</td>
                     </tr>
                     <tr>
                         <td>Combined DPS</td>
@@ -375,6 +390,21 @@
             healthDisplay.textContent = formatNumber(value);
         });
 
+        const defenceSlider = document.getElementById('defenceSlider');
+        const defenceInput = document.getElementById('defenceInput');
+        const defenceDisplay = document.getElementById('defenceDisplay');
+
+        defenceSlider.addEventListener('input', () => {
+            defenceInput.value = defenceSlider.value;
+            defenceDisplay.textContent = defenceSlider.value;
+        });
+
+        defenceInput.addEventListener('input', () => {
+            let v = Math.max(0, Math.min(900, parseInt(defenceInput.value) || 0));
+            defenceSlider.value = v;
+            defenceDisplay.textContent = v;
+        });
+
         function createSlotOptions() {
             const slots = new Set();
             Object.values(weaponsData).forEach(data => {
@@ -432,6 +462,11 @@
         function addWeapon() {
             if (weaponCount >= MAX_WEAPONS || Object.keys(weaponsData).length === 0) return;
 
+            const lastWeapon =
+                weaponCount > 0
+                    ? document.querySelectorAll('.weapon-item')[weaponCount - 1]
+                    : null;
+
             weaponCount++;
             const weaponId = `weapon${weaponCount}`;
 
@@ -456,6 +491,33 @@
             `;
 
             document.getElementById('weaponsContainer').appendChild(weaponDiv);
+
+            if (lastWeapon) {
+                const copy = id =>
+                    lastWeapon.querySelector(`#${lastWeapon.id}_${id}`)?.value;
+
+                const slot = copy("slot");
+                const tier = copy("tier");
+                const weapon = copy("weapon");
+                const level = copy("level");
+
+                if (slot) {
+                    document.getElementById(`${weaponId}_slot`).value = slot;
+                    updateTiers(weaponId);
+                }
+                if (tier) {
+                    document.getElementById(`${weaponId}_tier`).value = tier;
+                    updateWeapons(weaponId);
+                }
+                if (weapon) {
+                    document.getElementById(`${weaponId}_weapon`).value = weapon;
+                    updateLevels(weaponId);
+                }
+                if (level) {
+                    document.getElementById(`${weaponId}_level`).value = level;
+                }
+            }
+
             updateAddButton();
         }
 
@@ -588,14 +650,16 @@
             }
 
             const enemyHealth = parseInt(healthInput.value);
+            const enemyDefence = parseInt(defenceInput.value);
 
             try {
-                const result = calculateTTK(enemyHealth, weapons);
+                const result = calculateTTK(enemyHealth, enemyDefence, weapons);
 
                 // Update results
                 document.getElementById('ttkValue').textContent = result.ttk.toFixed(2) + 's';
                 document.getElementById('totalShots').textContent = formatNumber(result.total_shots);
                 document.getElementById('totalDamage').textContent = formatNumber(result.total_damage);
+                document.getElementById('damageMitigated').textContent = formatNumber(result.damage_mitigated);
                 document.getElementById('combinedDPS').textContent = formatNumber(result.dps);
 
                 // Weapon breakdown
@@ -895,4 +959,5 @@
 
     </script>
 </body>
+
 </html>
