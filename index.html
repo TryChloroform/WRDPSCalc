@@ -44,7 +44,7 @@
         }
 
         /* --- TYPOGRAPHY OVERRIDES --- */
-        h1, h2, h3, .ttk-value, .ttk-label, .weapon-number, .calculate-btn, .add-weapon-btn {
+        h1, h2, h3, .ttk-value, .ttk-label, .weapon-number, .calculate-btn, .add-weapon-btn, .collapse-header {
             /* Fallback to Impact/System if Reckoner is missing */
             font-family: 'Reckoner Bold', 'Impact', sans-serif;
             text-transform: uppercase;
@@ -87,6 +87,42 @@
             color: #495057;
         }
 
+        /* Collapsible Styles */
+        .collapsible-section {
+            margin-bottom: 20px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #f8f9fa;
+        }
+
+        .collapse-header {
+            width: 100%;
+            padding: 20px;
+            background: #f8f9fa;
+            border: none;
+            text-align: left;
+            font-size: 20px;
+            color: #495057;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .collapse-header:hover { background: #e2e6ea; }
+        
+        .collapse-content {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+            display: none; /* Collapsed by default */
+        }
+        .collapse-content.open { display: block; }
+        
+        .arrow-icon { transition: transform 0.2s; font-family: 'Google Sans', sans-serif; font-size: 14px; }
+        .collapse-content.open + .collapse-header .arrow-icon { transform: rotate(180deg); } /* This depends on structure, handling via JS instead */
+
+
         .config-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -128,10 +164,9 @@
             font-family: 'Google Sans', sans-serif; /* Keep numbers readable */
         }
 
-        /* --- Weapons List --- */
-        .weapon-item {
+        /* --- Weapons / Skills List --- */
+        .weapon-item, .skill-item {
             display: grid;
-            grid-template-columns: 32px 1fr 1fr 1fr 1fr 32px;
             gap: 12px;
             align-items: center;
             padding: 12px;
@@ -141,6 +176,9 @@
             border-radius: 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
+
+        .weapon-item { grid-template-columns: 32px 1fr 1fr 1fr 1fr 32px; }
+        .skill-item { grid-template-columns: 1fr 1fr 32px; }
         
         .weapon-number {
             width: 28px;
@@ -297,6 +335,17 @@
             </div>
         </div>
 
+        <div class="collapsible-section">
+            <button class="collapse-header" onclick="toggleCollapse(this)">
+                Pilot Skills
+                <span class="arrow-icon">▼</span>
+            </button>
+            <div class="collapse-content">
+                <div id="pilotSkillsContainer"></div>
+                <button class="add-weapon-btn" onclick="addPilotSkill()" style="margin-bottom:0;">+ Add Pilot Skill</button>
+            </div>
+        </div>
+
         <button class="calculate-btn" onclick="handleCalculateTTK()">Calculate Time to Kill</button>
 
         <div class="results" id="results">
@@ -396,20 +445,43 @@
         document.getElementById('healThreshold').addEventListener('input', function() {
             document.getElementById('thresholdDisplay').textContent = this.value + '%';
         });
+        
+        // --- Collapse Logic ---
+        function toggleCollapse(btn) {
+            const content = btn.nextElementSibling;
+            const arrow = btn.querySelector('.arrow-icon');
+            
+            if (content.classList.contains('open')) {
+                content.classList.remove('open');
+                arrow.style.transform = 'rotate(0deg)';
+            } else {
+                content.classList.add('open');
+                arrow.style.transform = 'rotate(180deg)';
+            }
+        }
 
         // --- Config Getters ---
         function getHealingConfig() {
             const moduleKey = document.getElementById("healingModule").value;
-            
-            // New logic: Read slider directly
             const thresholdVal = parseFloat(document.getElementById("healThreshold").value);
-            
-            // We pass it as an array to maintain compatibility with the logic in app.js
             const thresholds = [thresholdVal];
 
             const config = { ...HEALING_MODULES[moduleKey] };
             config.thresholds = thresholds;
             return config;
+        }
+
+        function getPilotConfig() {
+            const items = document.querySelectorAll('.skill-item');
+            const skills = [];
+            items.forEach(item => {
+                const name = document.getElementById(`${item.id}_name`).value;
+                const tier = parseInt(document.getElementById(`${item.id}_tier`).value);
+                if (name && tier) {
+                    skills.push({ name, tier });
+                }
+            });
+            return skills;
         }
 
         // --- Main Calculation Handler ---
@@ -432,10 +504,12 @@
             const health = parseInt(document.getElementById('healthInput').value);
             const defence = parseInt(document.getElementById('defenceInput').value);
             const healing = getHealingConfig();
+            const pilot = getPilotConfig();
 
             // 3. Run Sim
             try {
-                const result = calculateTTK(health, defence, weapons, healing);
+                // Pass pilot config as new argument
+                const result = calculateTTK(health, defence, weapons, healing, pilot);
                 
                 // 4. Update UI
                 document.getElementById('ttkValue').textContent = result.ttk.toFixed(2) + 's';
@@ -604,6 +678,40 @@
                 }
             }
             return ['<option value="">-- Level --</option>', ...opts].join('');
+        }
+
+        // --- Pilot Skill Logic (New) ---
+        let skillCount = 0;
+        const MAX_SKILLS = 10;
+        
+        function addPilotSkill() {
+            if(skillCount >= MAX_SKILLS) return;
+            skillCount++;
+            const id = `skill${skillCount}`;
+            const div = document.createElement('div');
+            div.className = 'skill-item';
+            div.id = id;
+            
+            // Available skills from PILOT_SKILLS_DATA global in app.js
+            // Note: Since app.js is loaded at the end, we can access PILOT_SKILLS_DATA here.
+            const skillOptions = Object.keys(PILOT_SKILLS_DATA).map(k => `<option value="${k}">${k}</option>`).join('');
+            
+            div.innerHTML = `
+                <select id="${id}_name">${skillOptions}</select>
+                <select id="${id}_tier">
+                    <option value="1">Tier 1</option>
+                    <option value="2">Tier 2</option>
+                    <option value="3">Tier 3</option>
+                    <option value="4">Tier 4</option>
+                </select>
+                <button class="remove-btn" onclick="removePilotSkill('${id}')">×</button>
+            `;
+            document.getElementById('pilotSkillsContainer').appendChild(div);
+        }
+
+        function removePilotSkill(id) {
+            document.getElementById(id).remove();
+            skillCount--;
         }
 
         // --- Dynamic Form Logic ---

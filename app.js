@@ -10,6 +10,23 @@ const HEALING_MODULES = {
     advanced: { rate: 0.10, duration: 4, cooldown: 20, name: "Adv. Repair Unit" }
 };
 
+// Pilot Skills Database
+// Format: tiers: [T1, T2, T3, T4]
+const PILOT_SKILLS_DATA = {
+    "Mechanic": { 
+        type: "passive_heal", 
+        tiers: [0.0025, 0.0040, 0.0050, 0.0070], 
+        description: "Restores percentage of durability per second"
+    },
+    "Titan Mechanic": { 
+        type: "passive_heal", 
+        tiers: [0.0014, 0.0021, 0.0042, 0.0070],
+        description: "Restores percentage of durability per second (Titan)"
+    }
+    // Future proofing example:
+    // "Adamant Guardian": { type: "conditional_def", tiers: [25, 30, 35, 40], condition: "enemy_count" }
+};
+
 /* =========================
    JSON LOADING
 ========================= */
@@ -40,7 +57,7 @@ function getBypassFraction(weaponData, level) {
 /* =========================
    TTK CALCULATION
 ========================= */
-function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = null) {
+function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = null, pilotConfig = []) {
     const safe = (v, d = 0) => Number.isFinite(v) ? v : d;
 
     // --- 1. Prepare Weapons ---
@@ -72,10 +89,6 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
         const multiplier = 100 / (100 + effectiveDP);
 
         // Sonic Grey Damage logic: Sonic = 100% unhealable, Others = 40% unhealable
-        // Grey Fraction represents how much of the damage CANNOT be healed.
-        // Conventional logic: 
-        // Normal weapons: Deal X damage. ~60% is healable, 40% is grey (permanent).
-        // Sonics: 100% grey.
         const greyFraction = data.ammo_type === "Sonic" ? 1.0 : 0.4;
 
         return {
@@ -112,12 +125,31 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
     let totalGreyDamage = 0;
     let totalMitigatedDamage = 0;
     
-    // Healing State
+    // Active Module State
     let healEvents = [];
-    let healCooldownReadyAt = 0; // Available immediately
-    let activeHealEndTime = -1;  // Not active
+    let healCooldownReadyAt = 0; 
+    let activeHealEndTime = -1;  
     
-    // Parse Thresholds
+    // Pilot Skill State
+    let passiveHealRate = 0; // % per second
+    
+    // Parse Pilot Skills
+    if (pilotConfig && pilotConfig.length > 0) {
+        pilotConfig.forEach(p => {
+            const skillData = PILOT_SKILLS_DATA[p.name];
+            if (!skillData) return;
+
+            // Tier indices: T1=0, T2=1, T3=2, T4=3
+            const tierIdx = Math.max(0, Math.min(3, p.tier - 1));
+            
+            if (skillData.type === 'passive_heal') {
+                passiveHealRate += skillData.tiers[tierIdx];
+            }
+            // Add future types here (e.g. conditional defence)
+        });
+    }
+
+    // Parse Active Module Thresholds
     let thresholds = [];
     if (healingConfig && healingConfig.thresholds) {
         thresholds = healingConfig.thresholds.sort((a, b) => b - a); // Descending
@@ -141,9 +173,6 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             if (w.ammo >= w.ammoPerShot) {
                 if (w.nextShotTime < nextEventTime) nextEventTime = w.nextShotTime;
             } else {
-                // If out of ammo and NOT reloading while firing, we wait for reload
-                // But the 'reload' logic handles the delay. 
-                // We just need to ensure nextShotTime is accurate (set during reload start).
                 if (w.nextShotTime < nextEventTime) nextEventTime = w.nextShotTime;
             }
 
@@ -160,12 +189,15 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
         const dt = nextEventTime - currentTime;
         
         // --- C. Handle Healing (Over the duration of dt) ---
-        // 1. Check Triggers at START of this window (currentTime)
+        
+        // C1. Check Active Module Triggers (Start of window)
+        let activeModuleRate = 0;
+        
         if (healingConfig && healingConfig.rate > 0) {
             const hpPercent = (currentHealth / currentMaxHealth) * 100;
             const isReady = currentTime >= healCooldownReadyAt;
             
-            // Trigger if ready AND below highest available threshold
+            // Trigger if ready AND below threshold
             if (isReady && thresholds.some(t => hpPercent <= t)) {
                 activeHealEndTime = currentTime + healingConfig.duration;
                 healCooldownReadyAt = currentTime + healingConfig.cooldown;
@@ -173,20 +205,37 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             }
         }
 
-        // 2. Apply Healing during dt
-        // Overlap logic: The window is [currentTime, nextEventTime].
-        // Active heal window is [healStartTime, activeHealEndTime].
-        // We just care if we are < activeHealEndTime.
-        
+        // C2. Apply Healing
+        // We have two sources: Passive (Pilot) and Active (Module)
+        // Passive applies for the whole dt.
+        // Active applies only if within window.
+
         const healWindowStart = currentTime;
-        const healWindowEnd = Math.min(nextEventTime, activeHealEndTime);
+        const healWindowEnd = nextEventTime;
         
-        if (healWindowEnd > healWindowStart) {
-            const healDuration = healWindowEnd - healWindowStart;
-            // Rate is % of Current MAX Health per second
-            const healAmount = currentMaxHealth * healingConfig.rate * healDuration;
+        // 1. Passive Healing (Full duration)
+        if (passiveHealRate > 0) {
+            const passiveAmount = currentMaxHealth * passiveHealRate * dt;
+            currentHealth = Math.min(currentHealth + passiveAmount, currentMaxHealth);
+        }
+
+        // 2. Active Healing (Conditional duration)
+        if (healingConfig && healingConfig.rate > 0) {
+            // Intersection of [currentTime, nextEventTime] AND [healStart, activeHealEndTime]
+            // Since we just checked trigger, healStart is effectively activeHealEndTime - duration (roughly)
+            // Simpler: Just check overlap with activeHealEndTime
             
-            currentHealth = Math.min(currentHealth + healAmount, currentMaxHealth);
+            const effectiveEnd = Math.min(nextEventTime, activeHealEndTime);
+            const effectiveStart = Math.max(currentTime, activeHealEndTime - healingConfig.duration); // Approximation safety
+            
+            // Logic: if currentTime < activeHealEndTime, we have some healing
+            if (currentTime < activeHealEndTime) {
+                const duration = effectiveEnd - currentTime; // How much of this step is healed
+                if (duration > 0) {
+                    const activeAmount = currentMaxHealth * healingConfig.rate * duration;
+                    currentHealth = Math.min(currentHealth + activeAmount, currentMaxHealth);
+                }
+            }
         }
 
         // Move time forward
@@ -213,19 +262,14 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             if (w.ammo < w.ammoPerShot) {
                 if (!w.reloadsWhileFiring) {
                     // Start Standard Reload
-                    // We arrived here at nextShotTime (which was set to 0 or previous shot time).
-                    // We must wait 'reloadTime' before firing again.
                     w.reloadCycles++;
                     w.totalReloadTime += w.reloadTime;
                     w.ammo = w.maxAmmo;
                     w.shotsRemainingInBurst = w.shotsPerBurst;
                     
-                    // The next shot can happen after reload
                     w.nextShotTime = currentTime + w.reloadTime;
-                    
                     ammoTimelines[w.name].push({ time: currentTime + w.reloadTime, ammo: w.ammo });
                 } else {
-                    // Reload while firing - just wait for next tick
                     w.nextShotTime = w.nextReloadTime;
                 }
                 continue;
@@ -233,7 +277,7 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
 
             // FIRE!
             const shotDamage = w.damagePerShot;
-            const greyDamage = shotDamage * w.greyFraction; // Permanent damage
+            const greyDamage = shotDamage * w.greyFraction; 
             
             currentMaxHealth -= greyDamage;
             currentHealth -= shotDamage;
