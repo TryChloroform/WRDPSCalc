@@ -135,7 +135,9 @@ VALUE_TRANSLATIONS = {
     "动能": "Kinetic",
     "实弹": "Kinetic",
     "音波": "Sonic",
-    "其他": "Other",  # Added
+    "其他": "Other",
+    # Tiers
+    "终极": "Ultimate",
     # Effects (Updated)
     "无": "None",
     "追踪": "Homing",

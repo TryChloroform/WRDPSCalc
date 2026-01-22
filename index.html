@@ -7,7 +7,6 @@
     <title>Weapon TTK Calculator</title>
     <style>
         /* --- FONT DEFINITIONS --- */
-        /* Ensure you have these font files or update the URLs to your CDN/Local path */
         @font-face {
             font-family: 'Reckoner Bold';
             src: url('fonts/Reckoner_Bold.ttf') format('truetype');
@@ -36,7 +35,6 @@
         }
 
         body {
-            /* Fallback to Roboto/Arial if Google Sans is missing */
             font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
             background: #f0f2f5;
             padding: 20px;
@@ -44,15 +42,24 @@
         }
 
         /* --- TYPOGRAPHY OVERRIDES --- */
-        h1, h2, h3, .ttk-value, .ttk-label, .weapon-number, .calculate-btn, .add-weapon-btn, .collapse-header {
-            /* Fallback to Impact/System if Reckoner is missing */
+        h1,
+        h2,
+        h3,
+        .ttk-value,
+        .ttk-label,
+        .weapon-number,
+        .calculate-btn,
+        .add-weapon-btn,
+        .collapse-header {
             font-family: 'Reckoner Bold', 'Impact', sans-serif;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
 
-        /* Ensure inputs use the body font, not system default */
-        input, select, button, textarea {
+        input,
+        select,
+        button,
+        textarea {
             font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
         }
 
@@ -69,7 +76,7 @@
             margin-bottom: 25px;
             color: #1a1a1a;
             font-size: 32px;
-            font-weight: normal; /* Let the font file handle weight */
+            font-weight: normal;
         }
 
         /* --- Input Sections --- */
@@ -109,19 +116,27 @@
             justify-content: space-between;
             align-items: center;
         }
-        .collapse-header:hover { background: #e2e6ea; }
-        
+
+        .collapse-header:hover {
+            background: #e2e6ea;
+        }
+
         .collapse-content {
             padding: 20px;
             background: white;
             border-top: 1px solid #e9ecef;
-            display: none; /* Collapsed by default */
+            display: none;
         }
-        .collapse-content.open { display: block; }
-        
-        .arrow-icon { transition: transform 0.2s; font-family: 'Google Sans', sans-serif; font-size: 14px; }
-        .collapse-content.open + .collapse-header .arrow-icon { transform: rotate(180deg); } /* This depends on structure, handling via JS instead */
 
+        .collapse-content.open {
+            display: block;
+        }
+
+        .arrow-icon {
+            transition: transform 0.2s;
+            font-family: 'Google Sans', sans-serif;
+            font-size: 14px;
+        }
 
         .config-row {
             display: grid;
@@ -153,7 +168,7 @@
             border-color: #007bff;
             outline: none;
         }
-        
+
         .value-display {
             float: right;
             background: #343a40;
@@ -161,11 +176,12 @@
             padding: 2px 8px;
             border-radius: 4px;
             font-size: 12px;
-            font-family: 'Google Sans', sans-serif; /* Keep numbers readable */
+            font-family: 'Google Sans', sans-serif;
         }
 
         /* --- Weapons / Skills List --- */
-        .weapon-item, .skill-item {
+        .weapon-item,
+        .skill-item {
             display: grid;
             gap: 12px;
             align-items: center;
@@ -174,12 +190,17 @@
             background: #fff;
             border: 1px solid #e9ecef;
             border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
-        .weapon-item { grid-template-columns: 32px 1fr 1fr 1fr 1fr 32px; }
-        .skill-item { grid-template-columns: 1fr 1fr 32px; }
-        
+        .weapon-item {
+            grid-template-columns: 32px 1fr 1fr 1fr 1fr 32px;
+        }
+
+        .skill-item {
+            grid-template-columns: 1fr 1fr 32px;
+        }
+
         .weapon-number {
             width: 28px;
             height: 28px;
@@ -190,7 +211,7 @@
             align-items: center;
             justify-content: center;
             font-size: 14px;
-            padding-top: 2px; /* Visual adjustment for Reckoner */
+            padding-top: 2px;
         }
 
         .add-weapon-btn {
@@ -205,8 +226,16 @@
             margin-bottom: 25px;
             transition: background 0.2s;
         }
-        .add-weapon-btn:hover { background: #218838; }
-        .add-weapon-btn:disabled { background: #e9ecef; color: #adb5bd; cursor: default; }
+
+        .add-weapon-btn:hover {
+            background: #218838;
+        }
+
+        .add-weapon-btn:disabled {
+            background: #e9ecef;
+            color: #adb5bd;
+            cursor: default;
+        }
 
         .remove-btn {
             background: #ff4d4f;
@@ -219,7 +248,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: Arial, sans-serif; /* Keep X symbol standard */
+            font-family: Arial, sans-serif;
         }
 
         /* --- Action --- */
@@ -232,11 +261,17 @@
             border-radius: 6px;
             font-size: 24px;
             cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,123,255,0.2);
+            box-shadow: 0 4px 6px rgba(0, 123, 255, 0.2);
             transition: transform 0.1s;
         }
-        .calculate-btn:hover { background: #0056b3; }
-        .calculate-btn:active { transform: scale(0.99); }
+
+        .calculate-btn:hover {
+            background: #0056b3;
+        }
+
+        .calculate-btn:active {
+            transform: scale(0.99);
+        }
 
         /* --- Results --- */
         .results {
@@ -244,11 +279,21 @@
             display: none;
             animation: fadeIn 0.3s ease-in-out;
         }
-        .results.show { display: block; }
-        
+
+        .results.show {
+            display: block;
+        }
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .ttk-box {
@@ -260,20 +305,36 @@
             margin-bottom: 25px;
             border: 1px solid #b8daff;
         }
-        
-        .ttk-value { 
-            font-size: 56px; 
+
+        .ttk-value {
+            font-size: 56px;
             line-height: 1.1;
         }
-        .ttk-label { 
-            font-size: 18px; 
-            opacity: 0.8; 
+
+        .ttk-label {
+            font-size: 18px;
+            opacity: 0.8;
         }
 
-        table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #dee2e6; }
-        th { background: #f8f9fa; color: #495057; font-weight: 600; }
-        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: #495057;
+            font-weight: 600;
+        }
+
         /* --- Timeline --- */
         .timeline-section {
             padding: 20px;
@@ -281,8 +342,13 @@
             border: 1px solid #dee2e6;
             border-radius: 8px;
         }
-        .timeline-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 </head>
@@ -296,14 +362,14 @@
 
         <div class="config-section">
             <h3>Target Configuration</h3>
-            
+
             <div class="config-row">
                 <div class="config-item">
                     <label>Enemy Health <span class="value-display" id="healthDisplay">300,000</span></label>
                     <input type="range" id="healthSlider" min="0" max="100" value="50" step="0.1" style="width:100%">
                     <input type="number" id="healthInput" value="300000" style="margin-top: 5px;">
                 </div>
-                
+
                 <div class="config-item">
                     <label>Defence Points <span class="value-display" id="defenceDisplay">0</span></label>
                     <input type="range" id="defenceSlider" min="0" max="900" value="0" step="1" style="width:100%">
@@ -314,7 +380,7 @@
 
         <div class="config-section">
             <h3>Healing Configuration</h3>
-            
+
             <div class="config-row">
                 <div class="config-item">
                     <label>Active Module</label>
@@ -324,10 +390,11 @@
                         <option value="advanced">Advanced Repair Unit (10%/s, 4s)</option>
                     </select>
                 </div>
-                
+
                 <div class="config-item">
                     <label>Activation Threshold <span class="value-display" id="thresholdDisplay">99%</span></label>
-                    <input type="range" id="healThreshold" min="0" max="99" value="99" step="1" dir="rtl" style="width:100%">
+                    <input type="range" id="healThreshold" min="0" max="99" value="99" step="1" dir="rtl"
+                        style="width:100%">
                     <small style="color: #6c757d; font-size: 11px; display: block; margin-top: 4px;">
                         Activates when health drops below this %. (Left = 99%, Right = 0%)
                     </small>
@@ -342,7 +409,8 @@
             </button>
             <div class="collapse-content">
                 <div id="pilotSkillsContainer"></div>
-                <button class="add-weapon-btn" onclick="addPilotSkill()" style="margin-bottom:0;">+ Add Pilot Skill</button>
+                <button class="add-weapon-btn" onclick="addPilotSkill()" style="margin-bottom:0;">+ Add Pilot
+                    Skill</button>
             </div>
         </div>
 
@@ -356,13 +424,28 @@
 
             <table>
                 <thead>
-                    <tr><th>Metric</th><th>Value</th></tr>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                    </tr>
                 </thead>
                 <tbody>
-                    <tr><td>Total Shots Fired</td><td id="totalShots">0</td></tr>
-                    <tr><td>Total Damage Dealt</td><td id="totalDamage">0</td></tr>
-                    <tr><td>Damage Mitigated (Defence)</td><td id="damageMitigated">0</td></tr>
-                    <tr><td>Combined DPS</td><td id="combinedDPS">0</td></tr>
+                    <tr>
+                        <td>Total Shots Fired</td>
+                        <td id="totalShots">0</td>
+                    </tr>
+                    <tr>
+                        <td>Total Damage Dealt</td>
+                        <td id="totalDamage">0</td>
+                    </tr>
+                    <tr>
+                        <td>Damage Mitigated (Defence)</td>
+                        <td id="damageMitigated">0</td>
+                    </tr>
+                    <tr>
+                        <td>Combined DPS</td>
+                        <td id="combinedDPS">0</td>
+                    </tr>
                 </tbody>
             </table>
 
@@ -382,7 +465,8 @@
             <div class="timeline-section">
                 <div class="timeline-header">
                     <h3>Simulation Timeline</h3>
-                    <button id="expandBtn" onclick="toggleFullscreen()" style="padding:6px 12px; cursor:pointer;">Expand</button>
+                    <button id="expandBtn" onclick="toggleFullscreen()"
+                        style="padding:6px 12px; cursor:pointer;">Expand</button>
                 </div>
                 <div id="timelineContainer" style="position:relative; width:100%;">
                     <canvas id="timelineChart"></canvas>
@@ -393,12 +477,12 @@
 
     <script src="app.js"></script>
     <script>
-        // --- UI Logic from original file, kept mostly intact but streamlined ---
+        // --- UI Logic ---
         let weaponCount = 0;
         const MAX_WEAPONS = 6;
         let timelineChart = null;
         const slotOrder = { "Light": 1, "Medium": 2, "Heavy": 3, "Beta": 4, "Alpha": 5 };
-        
+
         // --- Slider Logic ---
         const MIN_HEALTH = 50000, MAX_HEALTH = 20000000, MID_HEALTH = 300000;
 
@@ -411,46 +495,45 @@
 
         function healthToSlider(h) {
             if (h <= MID_HEALTH) return ((h - MIN_HEALTH) / (MID_HEALTH - MIN_HEALTH)) * 50;
-            return 50 + Math.pow((h - MID_HEALTH) / (MAX_HEALTH - MID_HEALTH), 1/2.5) * 50;
+            return 50 + Math.pow((h - MID_HEALTH) / (MAX_HEALTH - MID_HEALTH), 1 / 2.5) * 50;
         }
 
         function formatNumber(v) { return v ? v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "0"; }
 
         // Event Listeners
-        document.getElementById('healthSlider').addEventListener('input', function() {
+        document.getElementById('healthSlider').addEventListener('input', function () {
             const h = Math.round(sliderToHealth(this.value));
             document.getElementById('healthDisplay').textContent = formatNumber(h);
             document.getElementById('healthInput').value = h;
         });
-        
-        document.getElementById('healthInput').addEventListener('input', function() {
+
+        document.getElementById('healthInput').addEventListener('input', function () {
             let v = parseInt(this.value) || MIN_HEALTH;
-            this.value = v; // auto correct? maybe not for UX, but kept simple
+            this.value = v;
             document.getElementById('healthSlider').value = healthToSlider(v);
             document.getElementById('healthDisplay').textContent = formatNumber(v);
         });
 
-        document.getElementById('defenceSlider').addEventListener('input', function() {
+        document.getElementById('defenceSlider').addEventListener('input', function () {
             document.getElementById('defenceInput').value = this.value;
             document.getElementById('defenceDisplay').textContent = this.value;
         });
 
-        document.getElementById('defenceInput').addEventListener('input', function() {
-            let v = Math.min(900, Math.max(0, parseInt(this.value)||0));
+        document.getElementById('defenceInput').addEventListener('input', function () {
+            let v = Math.min(900, Math.max(0, parseInt(this.value) || 0));
             document.getElementById('defenceSlider').value = v;
             document.getElementById('defenceDisplay').textContent = v;
         });
 
-        // Healing Threshold Listener
-        document.getElementById('healThreshold').addEventListener('input', function() {
+        document.getElementById('healThreshold').addEventListener('input', function () {
             document.getElementById('thresholdDisplay').textContent = this.value + '%';
         });
-        
+
         // --- Collapse Logic ---
         function toggleCollapse(btn) {
             const content = btn.nextElementSibling;
             const arrow = btn.querySelector('.arrow-icon');
-            
+
             if (content.classList.contains('open')) {
                 content.classList.remove('open');
                 arrow.style.transform = 'rotate(0deg)';
@@ -486,7 +569,6 @@
 
         // --- Main Calculation Handler ---
         function handleCalculateTTK() {
-            // 1. Gather Weapons
             const weaponItems = document.querySelectorAll('.weapon-item');
             if (weaponItems.length === 0) return alert('Please add at least one weapon');
 
@@ -495,23 +577,19 @@
             weaponItems.forEach(item => {
                 const name = document.getElementById(`${item.id}_weapon`).value;
                 const level = document.getElementById(`${item.id}_level`).value;
-                if(!name || !level) valid = false;
+                if (!name || !level) valid = false;
                 weapons.push({ name, level });
             });
-            if(!valid) return alert('Please select weapon and level for all entries');
+            if (!valid) return alert('Please select weapon and level for all entries');
 
-            // 2. Gather Stats
             const health = parseInt(document.getElementById('healthInput').value);
             const defence = parseInt(document.getElementById('defenceInput').value);
             const healing = getHealingConfig();
             const pilot = getPilotConfig();
 
-            // 3. Run Sim
             try {
-                // Pass pilot config as new argument
                 const result = calculateTTK(health, defence, weapons, healing, pilot);
-                
-                // 4. Update UI
+
                 document.getElementById('ttkValue').textContent = result.ttk.toFixed(2) + 's';
                 document.getElementById('totalShots').textContent = formatNumber(result.total_shots);
                 document.getElementById('totalDamage').textContent = formatNumber(result.total_damage);
@@ -534,7 +612,7 @@
                 document.getElementById('results').classList.add('show');
                 renderTimeline(result.timeline, health);
 
-            } catch(e) {
+            } catch (e) {
                 console.error(e);
                 alert("Calculation error: " + e.message);
             }
@@ -543,27 +621,91 @@
         // --- Chart.js Visualization ---
         function renderTimeline(timeline, maxStartHealth) {
             const ctx = document.getElementById('timelineChart').getContext('2d');
-            if(timelineChart) timelineChart.destroy();
+            if (timelineChart) timelineChart.destroy();
 
             // Data Prep
             const healthPoints = timeline.enemyHealth.map(p => ({ x: p.time, y: p.health / maxStartHealth }));
             const maxHealthPoints = timeline.enemyHealth.map(p => ({ x: p.time, y: p.maxHealth / maxStartHealth }));
-            
-            // Healing Markers
-            const healMarkers = timeline.healTimeline.map(h => ({ x: h.time, y: 0.05 })); // show near bottom
 
-            // Weapon Ammo Lines (Simplified for readability)
+            const healMarkers = timeline.healTimeline.map(h => ({ x: h.time, y: 0.05 }));
+
+            // Effects Data
+            const freezePoints = timeline.effects.map(p => ({ x: p.time, y: p.freeze / 100 }));
+            const blastPoints = timeline.effects.map(p => ({ x: p.time, y: p.blast / 100 }));
+            const lockdownPoints = timeline.effects.map(p => ({ x: p.time, y: p.lockdown / 100 }));
+            const corrosionPoints = timeline.effects.map(p => ({ x: p.time, y: p.corrosion / maxStartHealth }));
+
+            // Check if effects accumulate at all
+            const hasFreeze = timeline.effects.some(e => e.freeze > 0);
+            const hasBlast = timeline.effects.some(e => e.blast > 0);
+            const hasLockdown = timeline.effects.some(e => e.lockdown > 0);
+            const hasCorrosion = timeline.effects.some(e => e.corrosion > 0);
+
+            // Create Effect Datasets
+            const effectDatasets = [];
+
+            if (hasFreeze) {
+                effectDatasets.push({
+                    label: 'Freeze %',
+                    data: freezePoints,
+                    borderColor: '#3b82f6', // Bright Blue
+                    borderWidth: 1.5,
+                    borderDash: [2, 2],
+                    pointRadius: 0,
+                    yAxisID: 'y-health',
+                    hidden: false
+                });
+            }
+
+            if (hasBlast) {
+                effectDatasets.push({
+                    label: 'Blast %',
+                    data: blastPoints,
+                    borderColor: '#f97316', // Orange
+                    borderWidth: 1.5,
+                    borderDash: [2, 2],
+                    pointRadius: 0,
+                    yAxisID: 'y-health',
+                    hidden: false
+                });
+            }
+
+            if (hasLockdown) {
+                effectDatasets.push({
+                    label: 'Lockdown %',
+                    data: lockdownPoints,
+                    borderColor: '#eab308', // Yellow
+                    borderWidth: 1.5,
+                    borderDash: [2, 2],
+                    pointRadius: 0,
+                    yAxisID: 'y-health',
+                    hidden: false
+                });
+            }
+
+            if (hasCorrosion) {
+                effectDatasets.push({
+                    label: 'Pending Corrosion',
+                    data: corrosionPoints,
+                    borderColor: '#a855f7', // Purple
+                    borderWidth: 1.5,
+                    borderDash: [3, 3],
+                    pointRadius: 0,
+                    yAxisID: 'y-health',
+                    fill: false
+                });
+            }
+
             const weaponDatasets = [];
             const colors = ['#36A2EB', '#FF6384', '#FF9F40', '#4BC0C0', '#9966FF', '#FFCD56'];
-            
+
             Object.keys(timeline.weapons).forEach((wName, idx) => {
                 const points = timeline.weapons[wName];
                 const wData = weaponsData[wName];
                 const max = wData ? wData.clip_size : 100;
-                
-                // Downsample for performance if too many points
+
                 const data = points.map(p => ({ x: p.time, y: p.ammo / max }));
-                
+
                 weaponDatasets.push({
                     label: wName,
                     data: data,
@@ -571,7 +713,7 @@
                     borderWidth: 1,
                     pointRadius: 0,
                     yAxisID: 'y-ammo',
-                    hidden: true // Hide weapons by default to keep chart clean
+                    hidden: true
                 });
             });
 
@@ -582,31 +724,35 @@
                         {
                             label: 'Current HP',
                             data: healthPoints,
-                            borderColor: '#28a745',
-                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            borderColor: '#22c55e',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
                             fill: true,
                             borderWidth: 2,
                             pointRadius: 0,
-                            yAxisID: 'y-health'
+                            yAxisID: 'y-health',
+                            order: 1
                         },
                         {
-                            label: 'Max HP Cap (Grey Dmg)',
+                            label: 'Max HP Cap',
                             data: maxHealthPoints,
-                            borderColor: '#6c757d',
+                            borderColor: '#64748b',
                             borderDash: [5, 5],
                             borderWidth: 2,
                             pointRadius: 0,
-                            yAxisID: 'y-health'
+                            yAxisID: 'y-health',
+                            order: 2
                         },
                         {
                             label: 'Heal Trigger',
                             data: healMarkers,
                             type: 'scatter',
-                            backgroundColor: '#28a745',
+                            backgroundColor: '#22c55e',
                             pointStyle: 'triangle',
                             pointRadius: 8,
-                            yAxisID: 'y-health'
+                            yAxisID: 'y-health',
+                            order: 0
                         },
+                        ...effectDatasets,
                         ...weaponDatasets
                     ]
                 },
@@ -614,23 +760,29 @@
                     responsive: true,
                     interaction: { mode: 'index', intersect: false },
                     scales: {
-                        x: { type: 'linear', title: {display:true, text:'Time (s)'} },
-                        'y-health': { 
-                            type: 'linear', position: 'left', min: 0, max: 1.05,
-                            title: {display:true, text:'Health Fraction'} 
+                        x: { type: 'linear', title: { display: true, text: 'Time (s)' } },
+                        'y-health': {
+                            type: 'linear', position: 'left', min: 0, max: 1.1,
+                            title: { display: true, text: 'Health / Effect Fraction' }
                         },
                         'y-ammo': {
-                            type: 'linear', position: 'right', min:0, max:1, display:false
+                            type: 'linear', position: 'right', min: 0, max: 1, display: false
                         }
                     },
                     plugins: {
                         tooltip: {
                             callbacks: {
-                                label: function(ctx) {
-                                    if(ctx.dataset.label === 'Current HP') {
+                                label: function (ctx) {
+                                    if (ctx.dataset.label === 'Current HP') {
                                         return `HP: ${Math.round(ctx.raw.y * maxStartHealth).toLocaleString()}`;
                                     }
-                                    return `${ctx.dataset.label}: ${(ctx.raw.y*100).toFixed(0)}%`;
+                                    if (ctx.dataset.label === 'Pending Corrosion') {
+                                        return `Pending DOT: ${Math.round(ctx.raw.y * maxStartHealth).toLocaleString()}`;
+                                    }
+                                    if (ctx.dataset.label.includes('%')) {
+                                        return `${ctx.dataset.label}: ${(ctx.raw.y * 100).toFixed(0)}%`;
+                                    }
+                                    return `${ctx.dataset.label}: ${(ctx.raw.y * 100).toFixed(0)}%`;
                                 }
                             }
                         }
@@ -643,8 +795,8 @@
         function toggleFullscreen() {
             const el = document.getElementById('timelineContainer');
             el.classList.toggle('fs-mode');
-            if(el.classList.contains('fs-mode')) {
-                el.style.position = 'fixed'; el.style.inset = '0'; el.style.background='white'; el.style.zIndex='1000'; el.style.padding='40px';
+            if (el.classList.contains('fs-mode')) {
+                el.style.position = 'fixed'; el.style.inset = '0'; el.style.background = 'white'; el.style.zIndex = '1000'; el.style.padding = '40px';
                 document.getElementById('expandBtn').textContent = 'Close';
             } else {
                 el.style = 'position:relative; width:100%;';
@@ -652,50 +804,48 @@
             }
         }
 
-        // --- Setup Dynamic Selects (Copied helpers) ---
+        // --- Setup Dynamic Selects ---
         function createSlotOptions() {
             const slots = new Set();
-            Object.values(weaponsData).forEach(d => { if(d.slot) slots.add(d.slot); });
-            return ['<option value="">-- Slot --</option>', ...Array.from(slots).sort((a,b)=>(slotOrder[a]||9)-(slotOrder[b]||9)).map(s=>`<option value="${s}">${s}</option>`)].join('');
+            Object.values(weaponsData).forEach(d => { if (d.slot) slots.add(d.slot); });
+            return ['<option value="">-- Slot --</option>', ...Array.from(slots).sort((a, b) => (slotOrder[a] || 9) - (slotOrder[b] || 9)).map(s => `<option value="${s}">${s}</option>`)].join('');
         }
         function createTierOptions(slot) {
             const tiers = new Set();
-            Object.values(weaponsData).filter(d => d.slot===slot).forEach(d => { if(d.tier) tiers.add(d.tier); });
-            return ['<option value="">-- Tier --</option>', ...Array.from(tiers).sort().map(t=>`<option value="${t}">${t==='终极'?'Ultimate':t}</option>`)].join('');
+            Object.values(weaponsData).filter(d => d.slot === slot).forEach(d => { if (d.tier) tiers.add(d.tier); });
+            return ['<option value="">-- Tier --</option>', ...Array.from(tiers).sort().map(t => `<option value="${t}">${t === 'Ultimate' ? 'Ultimate' : t}</option>`)].join('');
         }
         function createWeaponOptions(slot, tier) {
-            const names = Object.keys(weaponsData).filter(k => weaponsData[k].slot===slot && weaponsData[k].tier===tier).sort();
-            return ['<option value="">-- Weapon --</option>', ...names.map(n=>`<option value="${n}">${n}</option>`)].join('');
+            const names = Object.keys(weaponsData).filter(k => weaponsData[k].slot === slot && weaponsData[k].tier === tier).sort();
+            return ['<option value="">-- Weapon --</option>', ...names.map(n => `<option value="${n}">${n}</option>`)].join('');
         }
         function createLevelOptions(slot, wName) {
             const w = weaponsData[wName];
-            if(!w) return '';
+            if (!w) return '';
             const opts = [];
-            for(let i=1; i<=25; i++) {
-                if(w[`damage_${i}`]) {
-                    let label = (slot==='Alpha'||slot==='Beta') ? `Lvl ${i}` : (i<=12?`MK1 Lv${i}`:(i<=24?`MK2 Lv${i-12}`:`MK3 Lv1`));
+            for (let i = 1; i <= 25; i++) {
+                if (w[`damage_${i}`]) {
+                    let label = (slot === 'Alpha' || slot === 'Beta') ? `Lvl ${i}` : (i <= 12 ? `MK1 Lv${i}` : (i <= 24 ? `MK2 Lv${i - 12}` : `MK3 Lv1`));
                     opts.push(`<option value="damage_${i}">${label}</option>`);
                 }
             }
             return ['<option value="">-- Level --</option>', ...opts].join('');
         }
 
-        // --- Pilot Skill Logic (New) ---
+        // --- Pilot Skill Logic ---
         let skillCount = 0;
         const MAX_SKILLS = 10;
-        
+
         function addPilotSkill() {
-            if(skillCount >= MAX_SKILLS) return;
+            if (skillCount >= MAX_SKILLS) return;
             skillCount++;
             const id = `skill${skillCount}`;
             const div = document.createElement('div');
             div.className = 'skill-item';
             div.id = id;
-            
-            // Available skills from PILOT_SKILLS_DATA global in app.js
-            // Note: Since app.js is loaded at the end, we can access PILOT_SKILLS_DATA here.
+
             const skillOptions = Object.keys(PILOT_SKILLS_DATA).map(k => `<option value="${k}">${k}</option>`).join('');
-            
+
             div.innerHTML = `
                 <select id="${id}_name">${skillOptions}</select>
                 <select id="${id}_tier">
@@ -716,7 +866,7 @@
 
         // --- Dynamic Form Logic ---
         function addWeapon() {
-            if(weaponCount >= MAX_WEAPONS) return;
+            if (weaponCount >= MAX_WEAPONS) return;
             weaponCount++;
             const id = `weapon${weaponCount}`;
             const div = document.createElement('div');
@@ -731,19 +881,18 @@
                 <button class="remove-btn" onclick="removeWeapon('${id}')">×</button>
             `;
             document.getElementById('weaponsContainer').appendChild(div);
-            
-            // Auto-fill from previous if exists
-            if(weaponCount > 1) {
-                const prevId = `weapon${weaponCount-1}`;
+
+            if (weaponCount > 1) {
+                const prevId = `weapon${weaponCount - 1}`;
                 const prevSlot = document.getElementById(`${prevId}_slot`).value;
-                if(prevSlot) {
+                if (prevSlot) {
                     const sel = document.getElementById(`${id}_slot`);
                     sel.value = prevSlot;
-                    sel.onchange(); 
+                    sel.onchange();
                 }
             }
         }
-        
+
         function removeWeapon(id) {
             document.getElementById(id).remove();
             weaponCount--;
@@ -771,16 +920,16 @@
             const lSel = document.getElementById(`${id}_level`);
             lSel.innerHTML = createLevelOptions(slot, wName);
             lSel.disabled = false;
-            // Select max level by default for UX
-            if(lSel.options.length > 1) lSel.selectedIndex = lSel.options.length - 1;
+            if (lSel.options.length > 1) lSel.selectedIndex = lSel.options.length - 1;
         };
 
         // Init
         document.addEventListener("DOMContentLoaded", async () => {
             await loadWeaponsJSON();
-            addWeapon(); // Add first empty slot
+            addWeapon();
         });
 
     </script>
 </body>
+
 </html>
