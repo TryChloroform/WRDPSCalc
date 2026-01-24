@@ -379,6 +379,26 @@
         </div>
 
         <div class="config-section">
+            <h3>Accuracy Configuration</h3>
+
+            <div class="config-row">
+                <div class="config-item">
+                    <label>Target Type</label>
+                    <select id="targetType">
+                        <option value="robot">Robot</option>
+                        <option value="titan">Titan</option>
+                    </select>
+                </div>
+
+                <div class="config-item">
+                    <label>Distance <span class="value-display" id="distanceDisplay">25m</span></label>
+                    <input type="range" id="distanceSlider" min="25" max="1100" value="25" step="5" style="width:100%">
+                    <input type="number" id="distanceInput" value="25" min="25" max="1100" style="margin-top: 5px;">
+                </div>
+            </div>
+        </div>
+
+        <div class="config-section">
             <h3>Healing Configuration</h3>
 
             <div class="config-row">
@@ -457,6 +477,7 @@
                         <th>Shots</th>
                         <th>Damage</th>
                         <th>Reloads</th>
+                        <th>Hit Rate</th>
                     </tr>
                 </thead>
                 <tbody id="breakdownBody"></tbody>
@@ -525,6 +546,17 @@
             document.getElementById('defenceDisplay').textContent = v;
         });
 
+        document.getElementById('distanceSlider').addEventListener('input', function () {
+            document.getElementById('distanceInput').value = this.value;
+            document.getElementById('distanceDisplay').textContent = this.value + 'm';
+        });
+        document.getElementById('distanceInput').addEventListener('input', function () {
+            let v = Math.min(1100, Math.max(25, parseInt(this.value) || 25));
+            this.value = v;
+            document.getElementById('distanceSlider').value = v;
+            document.getElementById('distanceDisplay').textContent = v + 'm';
+        });
+
         document.getElementById('healThreshold').addEventListener('input', function () {
             document.getElementById('thresholdDisplay').textContent = this.value + '%';
         });
@@ -544,6 +576,17 @@
         }
 
         // --- Config Getters ---
+        function getAccuracyConfig() {
+            const targetType = document.getElementById("targetType").value;
+            const distance = parseFloat(document.getElementById("distanceInput").value);
+
+            return {
+                enabled: true,
+                targetSize: TARGET_SIZES[targetType],
+                distance: distance
+            };
+        }
+
         function getHealingConfig() {
             const moduleKey = document.getElementById("healingModule").value;
             const thresholdVal = parseFloat(document.getElementById("healThreshold").value);
@@ -584,13 +627,20 @@
 
             const health = parseInt(document.getElementById('healthInput').value);
             const defence = parseInt(document.getElementById('defenceInput').value);
+            const accuracy = getAccuracyConfig();
             const healing = getHealingConfig();
             const pilot = getPilotConfig();
 
             try {
-                const result = calculateTTK(health, defence, weapons, healing, pilot);
+                const result = calculateTTK(health, defence, weapons, healing, pilot, accuracy);
 
-                document.getElementById('ttkValue').textContent = result.ttk.toFixed(2) + 's';
+                // Handle infinity case
+                if (!isFinite(result.ttk)) {
+                    document.getElementById('ttkValue').textContent = '∞';
+                } else {
+                    document.getElementById('ttkValue').textContent = result.ttk.toFixed(2) + 's';
+                }
+
                 document.getElementById('totalShots').textContent = formatNumber(result.total_shots);
                 document.getElementById('totalDamage').textContent = formatNumber(result.total_damage);
                 document.getElementById('damageMitigated').textContent = formatNumber(result.damage_mitigated);
@@ -605,6 +655,7 @@
                             <td>${formatNumber(w.shots)}</td>
                             <td>${formatNumber(w.damage)}</td>
                             <td>${w.reloads}</td>
+                            
                         </tr>
                     `;
                 });

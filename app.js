@@ -29,6 +29,11 @@ const EFFECT_CONFIG = {
     corrosion: { duration: 5 }
 };
 
+const TARGET_SIZES = {
+    robot: 10,
+    titan: 30
+};
+
 /* =========================
    JSON LOADING
 ========================= */
@@ -59,8 +64,13 @@ function getBypassFraction(weaponData, level) {
 /* =========================
    TTK CALCULATION
 ========================= */
-function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = null, pilotConfig = []) {
+function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = null, pilotConfig = [], accuracyConfig = null) {
     const safe = (v, d = 0) => Number.isFinite(v) ? v : d;
+
+    // --- Accuracy Setup ---
+    const applyAccuracy = accuracyConfig?.enabled || false;
+    const targetSize = accuracyConfig?.targetSize || 10;
+    const distance = accuracyConfig?.distance || 25;
 
     // --- 1. Prepare Weapons ---
     const weapons = weaponConfigs.map(cfg => {
@@ -111,6 +121,18 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
         const effectiveDP = Math.max(0, enemyDefence * (1 - bypass));
         const multiplier = 100 / (100 + effectiveDP);
 
+        const weaponRange = safe(data.range, Infinity);
+        const hAngle = safe(data.spread_horizontal, 0);
+        const scatterWidth = distance > 0 ? 2 * distance * Math.tan((hAngle * 100 * Math.PI / 180) / 2) : 0;
+
+        // Check if weapon is out of range
+        const isOutOfRange = applyAccuracy && weaponRange < distance;
+        const hitRate = isOutOfRange ? 0 : Math.min(1, targetSize / scatterWidth);
+
+        // For multi-particle weapons, calculate expected hits
+        const particlesPerShot = safe(data.particles_per_shot, 1);
+        const expectedHits = isOutOfRange ? 0 : particlesPerShot * hitRate;
+
         const greyFraction = data.ammo_type === "Sonic" ? 1.0 : 0.4;
 
         return {
@@ -123,6 +145,8 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             burstInterval: isBurst ? safe(data.burst_interval, 0) : 0,
             shotsPerBurst,
             shotsRemainingInBurst: shotsPerBurst,
+            particlesPerShot: particlesPerShot,
+            expectedHits,
             ammo: safe(data.clip_size, Infinity),
             maxAmmo: safe(data.clip_size, Infinity),
             ammoPerShot: safe(data.ammo_per_shot, 1),
@@ -133,6 +157,8 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             greyFraction,
             nextShotTime: 0,
             nextReloadTime: reloadsWhileFiring ? 0 : Infinity,
+            isOutOfRange,
+            hitRate,
 
             // Accel State
             continuousFireTimer: 0,
@@ -149,6 +175,34 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
     });
 
     // --- 2. Initialize Sim State ---
+    // Check if all weapons are out of range
+    if (applyAccuracy && weapons.every(w => w.isOutOfRange)) {
+        return {
+            ttk: Infinity,
+            total_shots: 0,
+            total_damage: 0,
+            damage_mitigated: 0,
+            dps: 0,
+            breakdown: weapons.map(w => ({
+                name: w.name,
+                shots: 0,
+                damage: 0,
+                reloads: 0,
+                reload_time: 0,
+                hit_rate: 0,
+                missed_shots: 0,
+                missed_particles: 0,
+                particles_per_shot: w.particlesPerShot
+            })),
+            timeline: {
+                enemyHealth: [{ time: 0, health: enemyHealth, maxHealth: enemyHealth }],
+                weapons: {},
+                healTimeline: [],
+                effects: [{ time: 0, freeze: 0, lockdown: 0, blast: 0, corrosion: 0 }]
+            }
+        };
+    }
+
     let currentTime = 0;
     let currentHealth = enemyHealth;
     let currentMaxHealth = enemyHealth;
@@ -368,33 +422,97 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             }
 
             // --- DAMAGE CALCULATION ---
-            let finalDamage = w.damagePerShot;
-            if (currentTime < effects.freeze.activeEndTime) finalDamage *= EFFECT_CONFIG.freeze.damageMult;
+            // Skip damage entirely if weapon is out of range
+            if (w.isOutOfRange) {
+                w.totalShots++;
+                w.ammo -= w.ammoPerShot;
+                w.shotsRemainingInBurst--;
+                w.missedShots++;
+                w.missedParticles += w.particlesPerShot;
 
+                // Still record the shot timing
+                recordSnapshot(currentTime);
+                ammoTimelines[w.name].push({ time: currentTime, ammo: w.ammo });
+
+                // Calculate next shot time (same as before)
+                let currentFireInterval = w.fireInterval;
+                if (w.accelActivationTime > 0 && w.continuousFireTimer >= w.accelActivationTime) {
+                    currentFireInterval = w.accelFireInterval;
+                }
+
+                let timeToNextShot = 0;
+                if (w.shotsRemainingInBurst > 0) {
+                    timeToNextShot = currentFireInterval;
+                } else {
+                    w.shotsRemainingInBurst = w.shotsPerBurst;
+                    timeToNextShot = currentFireInterval + w.burstInterval;
+                }
+
+                w.continuousFireTimer += timeToNextShot;
+                w.nextShotTime = currentTime + timeToNextShot;
+                continue;
+            }
+
+            let actualHits = w.particlesPerShot;
+            let actualMisses = 0;
+
+            // Apply accuracy (per-particle miss chance)
+            if (applyAccuracy) {
+                // For multi-particle weapons, use expected hits
+                if (w.particlesPerShot > 1) {
+                    actualHits = Math.round(w.expectedHits);
+                    actualMisses = w.particlesPerShot - actualHits;
+                } else {
+                    // For single-particle weapons, use random chance
+                    if (Math.random() > w.hitRate) {
+                        actualHits = 0;
+                        actualMisses = 1;
+                    }
+                }
+            }
+
+            // Calculate damage only from hits
+            let finalDamage = (w.damagePerShot / w.particlesPerShot) * actualHits;
+
+            // Apply freeze multiplier to hit damage
+            if (finalDamage > 0 && currentTime < effects.freeze.activeEndTime) {
+                finalDamage *= EFFECT_CONFIG.freeze.damageMult;
+            }
+
+            // Grey damage only from hits
             const greyDamage = finalDamage * w.greyFraction;
-            currentMaxHealth -= greyDamage;
+
+            // Misses deal grey damage only
+            const missedGreyDamage = (w.damagePerShot / w.particlesPerShot) * actualMisses * w.greyFraction;
+
+            currentMaxHealth -= (greyDamage + missedGreyDamage);
             currentHealth -= finalDamage;
             currentMaxHealth = Math.max(0, currentMaxHealth);
             currentHealth = Math.min(currentHealth, currentMaxHealth);
 
-            totalGreyDamage += greyDamage;
+            totalGreyDamage += (greyDamage + missedGreyDamage);
             totalMitigatedDamage += (w.rawDamagePerShot - w.damagePerShot);
             w.totalShots++;
             w.ammo -= w.ammoPerShot;
             w.shotsRemainingInBurst--;
 
-            // --- EFFECT ACCUMULATION ---
-            if (w.effectType !== "none" && w.effectPerShot > 0) {
+            // --- EFFECT ACCUMULATION (only from hits) ---
+            if (w.effectType !== "none" && w.effectPerShot > 0 && actualHits > 0) {
+                // Scale effect by hit ratio
+                const effectAmount = (w.effectPerShot / w.particlesPerShot) * actualHits;
+
                 if (w.effectType === "corrosion") {
-                    // Total effect is applied over 5s. Each particle creates a stack.
-                    activeCorrosionStacks.push({
-                        dps: w.effectPerShot / EFFECT_CONFIG.corrosion.duration,
-                        endTime: currentTime + EFFECT_CONFIG.corrosion.duration
-                    });
+                    // Each hit creates a corrosion stack
+                    for (let i = 0; i < actualHits; i++) {
+                        activeCorrosionStacks.push({
+                            dps: (w.effectPerShot / w.particlesPerShot) / EFFECT_CONFIG.corrosion.duration,
+                            endTime: currentTime + EFFECT_CONFIG.corrosion.duration
+                        });
+                    }
                 }
                 else if (w.effectType === "freeze") {
                     if (currentTime >= effects.freeze.activeEndTime && currentTime >= effects.freeze.immunityEndTime) {
-                        effects.freeze.current += w.effectPerShot;
+                        effects.freeze.current += effectAmount;
                         if (effects.freeze.current >= 100) {
                             effects.freeze.current = 100;
                             recordSnapshot(currentTime);
@@ -406,7 +524,7 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
                 }
                 else if (w.effectType === "lockdown") {
                     if (currentTime >= effects.lockdown.activeEndTime && currentTime >= effects.lockdown.immunityEndTime) {
-                        effects.lockdown.current += w.effectPerShot;
+                        effects.lockdown.current += effectAmount;
                         if (effects.lockdown.current >= 100) {
                             effects.lockdown.current = 100;
                             recordSnapshot(currentTime);
@@ -418,7 +536,7 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
                 }
                 else if (w.effectType === "blast") {
                     if (effects.blast.detonationTime === Infinity) {
-                        effects.blast.current += w.effectPerShot;
+                        effects.blast.current += effectAmount;
                         if (effects.blast.current >= 100) {
                             effects.blast.current = 100;
                             effects.blast.detonationTime = currentTime + EFFECT_CONFIG.blast.delay;
@@ -467,7 +585,8 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             shots: w.totalShots,
             damage: Math.round(w.totalShots * w.damagePerShot),
             reloads: w.reloadCycles,
-            reload_time: Math.round(w.totalReloadTime * 100) / 100
+            reload_time: Math.round(w.totalReloadTime * 100) / 100,
+            hit_rate: Math.round(w.hitRate * 100)
         })),
         timeline: {
             enemyHealth: healthTimeline,
