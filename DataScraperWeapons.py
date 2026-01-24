@@ -6,31 +6,27 @@ from typing import Any
 
 # Provided WEAPONS list
 WEAPONS = [
-    # Tier 1 Robot
-    "Punisher", "Spiral", "Pin", "Molot", "Aphid", "Gekko", "Noricum", "Ecu",
-    "Punisher_T", "Molot_T",
-    "Thunder", "Trident", "Nashorn", "Kang_Dae", "Zenit",
-
-    # Tier 2 Robot
-    "Magnum", "Pinata", "Arbalest", "Gust", "Sting",
-    "Orkan", "Hydra", "Tulumbas", "Taran", "Ballista", "Storm", "Ion",
-    "Trebuchet", "Zeus", "Avenger", "Exodus",
-
-    # Tier 3 Robot
+    # T1 Weapons
+    "Punisher_T", "Punisher", "Spiral", "Pin", "Molot", "Aphid", "Gekko", "Molot_T", "Thunder", "Trident", "Nashorn", "Noricum", "Kang_Dae", "Zenit",
+    
+    # T2 Weapons
+    "Magnum", "Pinata", "Orkan", "Hydra", "Tulumbas", "Trebuchet", "Arbalest", "Taran", "Zeus", "Gust", "Avenger", "Ballista", "Storm", "Ion", "Sting", "Exodus",
+    \
+    # T3 Weapons
     "Snaer", "Volt", "Halo", "Shredder", "Marquess", "Blaze", "Rime", "Spark", "Scald",
     "Shocktrain", "Skadi", "Vortex", "Weber", "Corona", "Hussar", "Igniter", "Cryo", "Fainter", "Scourge", "Scorcher",
     "Flux", "Chimera", "Hel", "Gauss", "Tempest", "Thermite", "Glory", "Avalanche", "Puncher", "Redeemer", "Dragoon",
     "Viper", "Ember", "Calamity", "Glacier", "Incinerator",
-
-    # Tier 4 Robot
+    
+    # T4 Weapons
     "Magnetar", "Quarker", "Toxin", "Blight", "Cudgel", "Kramola", "Scatter", "Claw",
     "Spear", "Taeja", "Needle", "Ksiphos", "Splinter", "Trickster", "Tamer", "Shifang",
-    "Morana", "Aramis", "Howler", "Smite", "Gangil", "Pow", "Elox", "Gladius",
+    "Morana", "Aramis", "Howler", "Smite", "Gangil", "ARM_L-83", "Hedjet", "Pow", "Elox", "Gladius",
     "Wasp", "Pulsar", "Atomizer", "Venom", "Havoc", "Hazard", "Mace", "Razdor", "Jaw", "Yeoje",
     "Spike", "Labrys", "Hurricane", "Shatter", "Deceiver", "Damper", "Leiming", "Chione",
-    "Porthos", "Discipline", "Growler", "Deshret", "Regulator", "Mogwan", "Nanea", "Bash", "Murix",
+    "Porthos", "Discipline", "Growler", "Deshret", "Regulator", "Mogwan", "ARM_M-80", "Nanea", "Bash", "Murix",
     "Hornet", "Prisma", "Bane", "Nucleon", "Decay", "Devastator", "Hammer", "Smuta", "Talon",
-    "Hwangje", "Stake", "Reaper", "Cestus", "Brisant", "Subduer", "Fengbao", "Jotunn", "Athos", "Dune",
+    "Hwangje", "Stake", "Reaper", "Cestus", "Brisant", "Subduer", "Fengbao", "Jotunn", "Athos", "Dune", "Pshent",
     "Piercer", "Boom", "Pilum",
     
     # 11.7 New Robot Weapons
