@@ -34,6 +34,12 @@ const TARGET_SIZES = {
     titan: 30
 };
 
+const INTEL_BONUSES = {
+    friendly: [1.00, 1.05, 1.10, 1.15, 1.20, 1.25],  // 0%, 5%, 10%, 15%, 20%, 25%
+    enemy_damage: [1.00, 0.99, 0.98, 0.97, 0.96, 0.95],  // 0%, -1%, -2%, -3%, -4%, -5%
+    enemy_effect: [1.00, 0.98, 0.96, 0.94, 0.92, 0.90]   // 0%, -2%, -4%, -6%, -8%, -10%
+};
+
 /* =========================
    JSON LOADING
 ========================= */
@@ -64,7 +70,7 @@ function getBypassFraction(weaponData, level) {
 /* =========================
    TTK CALCULATION
 ========================= */
-function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = null, pilotConfig = [], accuracyConfig = null) {
+function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = null, pilotConfig = [], accuracyConfig = null, intelConfig = null) {
     const safe = (v, d = 0) => Number.isFinite(v) ? v : d;
 
     // --- Accuracy Setup ---
@@ -116,14 +122,21 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             effectPerShot = totalEffect / clip;
         }
 
-        // Defence Calc
-        const bypass = getBypassFraction(data, levelNumber);
-        const effectiveDP = Math.max(0, enemyDefence * (1 - bypass));
-        const multiplier = 100 / (100 + effectiveDP);
-
         const weaponRange = safe(data.range, Infinity);
         const hAngle = safe(data.spread_horizontal, 0);
         const scatterWidth = distance > 0 ? 2 * distance * Math.tan((hAngle * 100 * Math.PI / 180) / 2) : 0;
+
+        const friendlyIntel = intelConfig?.friendly || 0;
+        const enemyIntel = intelConfig?.enemy || 0;
+        const friendlyDamageMult = INTEL_BONUSES.friendly[friendlyIntel];
+        const enemyDamageMult = INTEL_BONUSES.enemy_damage[enemyIntel];
+        const enemyEffectMult = INTEL_BONUSES.enemy_effect[enemyIntel];
+
+        // Defence Calc
+        const bypass = getBypassFraction(data, levelNumber);
+        const effectiveDP = Math.max(0, enemyDefence * (1 - bypass));
+        const multiplier = (100 / (100 + effectiveDP)) * friendlyDamageMult * enemyDamageMult;
+        const defenseOnlyMultiplier = 100 / (100 + effectiveDP);
 
         // Check if weapon is out of range
         const isOutOfRange = applyAccuracy && weaponRange < distance;
@@ -139,6 +152,7 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             name: cfg.name,
             rawDamagePerShot: baseDamage,
             damagePerShot: baseDamage * multiplier,
+            defenseOnlyDamagePerShot: baseDamage * defenseOnlyMultiplier,
             fireInterval: fireInterval,
             accelFireInterval: accelFireInterval,
             accelActivationTime: accelActivationTime,
@@ -491,21 +505,23 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             currentHealth = Math.min(currentHealth, currentMaxHealth);
 
             totalGreyDamage += (greyDamage + missedGreyDamage);
-            totalMitigatedDamage += (w.rawDamagePerShot - w.damagePerShot);
+            totalMitigatedDamage += (w.rawDamagePerShot - w.defenseOnlyDamagePerShot);
             w.totalShots++;
             w.ammo -= w.ammoPerShot;
             w.shotsRemainingInBurst--;
 
-            // --- EFFECT ACCUMULATION (only from hits) ---
+            // --- EFFECT ACCUMULATION ---
             if (w.effectType !== "none" && w.effectPerShot > 0 && actualHits > 0) {
                 // Scale effect by hit ratio
-                const effectAmount = (w.effectPerShot / w.particlesPerShot) * actualHits;
+                // Enemy intel affects accumulation for all effects EXCEPT lockdown
+                const baseEffectAmount = (w.effectPerShot / w.particlesPerShot) * actualHits;
+                const effectAmount = (w.effectType === "lockdown") ? baseEffectAmount : baseEffectAmount * enemyEffectMult;
 
                 if (w.effectType === "corrosion") {
-                    // Each hit creates a corrosion stack
+                    // Each hit creates a corrosion stack (reduced by enemy intel)
                     for (let i = 0; i < actualHits; i++) {
                         activeCorrosionStacks.push({
-                            dps: (w.effectPerShot / w.particlesPerShot) / EFFECT_CONFIG.corrosion.duration,
+                            dps: ((w.effectPerShot / w.particlesPerShot) / EFFECT_CONFIG.corrosion.duration) * enemyEffectMult,
                             endTime: currentTime + EFFECT_CONFIG.corrosion.duration
                         });
                     }
@@ -524,11 +540,12 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
                 }
                 else if (w.effectType === "lockdown") {
                     if (currentTime >= effects.lockdown.activeEndTime && currentTime >= effects.lockdown.immunityEndTime) {
-                        effects.lockdown.current += effectAmount;
+                        effects.lockdown.current += effectAmount;  // No intel reduction on accumulation
                         if (effects.lockdown.current >= 100) {
                             effects.lockdown.current = 100;
                             recordSnapshot(currentTime);
-                            effects.lockdown.activeEndTime = currentTime + EFFECT_CONFIG.lockdown.duration;
+                            const lockdownDuration = EFFECT_CONFIG.lockdown.duration * enemyEffectMult;  // Intel DOES reduce duration
+                            effects.lockdown.activeEndTime = currentTime + lockdownDuration;
                             effects.lockdown.immunityEndTime = effects.lockdown.activeEndTime + EFFECT_CONFIG.lockdown.immunity;
                             effects.lockdown.current = 0;
                         }

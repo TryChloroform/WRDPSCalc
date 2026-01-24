@@ -399,6 +399,30 @@
         </div>
 
         <div class="config-section">
+            <h3>Intel Configuration</h3>
+
+            <div class="config-row">
+                <div class="config-item">
+                    <label>Friendly Intel <span class="value-display" id="friendlyIntelDisplay">100% (+25%
+                            dmg)</span></label>
+                    <input type="range" id="friendlyIntelSlider" min="0" max="5" value="5" step="1" style="width:100%">
+                    <small style="color: #6c757d; font-size: 11px; display: block; margin-top: 4px;">
+                        Increases direct damage: 0%/+5%/+10%/+15%/+20%/+25%
+                    </small>
+                </div>
+
+                <div class="config-item">
+                    <label>Enemy Intel <span class="value-display" id="enemyIntelDisplay">100% (0%
+                            reduction)</span></label>
+                    <input type="range" id="enemyIntelSlider" min="0" max="5" value="5" step="1" style="width:100%">
+                    <small style="color: #6c757d; font-size: 11px; display: block; margin-top: 4px;">
+                        Reduces damage taken & effect power
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="config-section">
             <h3>Healing Configuration</h3>
 
             <div class="config-row">
@@ -557,6 +581,22 @@
             document.getElementById('distanceDisplay').textContent = v + 'm';
         });
 
+        const friendlyIntelLabels = [
+            '0% (0% dmg)', '20% (+5% dmg)', '40% (+10% dmg)',
+            '60% (+15% dmg)', '80% (+20% dmg)', '100% (+25% dmg)'
+        ];
+        const enemyIntelLabels = [
+            '0% (0% reduction)', '20% (-1% dmg, -2% effect)', '40% (-2% dmg, -4% effect)',
+            '60% (-3% dmg, -6% effect)', '80% (-4% dmg, -8% effect)', '100% (-5% dmg, -10% effect)'
+        ];
+
+        document.getElementById('friendlyIntelSlider').addEventListener('input', function () {
+            document.getElementById('friendlyIntelDisplay').textContent = friendlyIntelLabels[this.value];
+        });
+        document.getElementById('enemyIntelSlider').addEventListener('input', function () {
+            document.getElementById('enemyIntelDisplay').textContent = enemyIntelLabels[this.value];
+        });
+
         document.getElementById('healThreshold').addEventListener('input', function () {
             document.getElementById('thresholdDisplay').textContent = this.value + '%';
         });
@@ -584,6 +624,16 @@
                 enabled: true,
                 targetSize: TARGET_SIZES[targetType],
                 distance: distance
+            };
+        }
+
+        function getIntelConfig() {
+            const friendly = parseInt(document.getElementById("friendlyIntelSlider").value);
+            const enemy = parseInt(document.getElementById("enemyIntelSlider").value);
+
+            return {
+                friendly: friendly,
+                enemy: enemy
             };
         }
 
@@ -628,11 +678,12 @@
             const health = parseInt(document.getElementById('healthInput').value);
             const defence = parseInt(document.getElementById('defenceInput').value);
             const accuracy = getAccuracyConfig();
+            const intel = getIntelConfig();
             const healing = getHealingConfig();
             const pilot = getPilotConfig();
 
             try {
-                const result = calculateTTK(health, defence, weapons, healing, pilot, accuracy);
+                const result = calculateTTK(health, defence, weapons, healing, pilot, accuracy, intel);
 
                 // Handle infinity case
                 if (!isFinite(result.ttk)) {
