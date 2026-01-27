@@ -4,52 +4,53 @@ import re
 import time
 from typing import Any
 
-# Provided WEAPONS list
-WEAPONS = [
-    # T1 Weapons
-    "Punisher_T", "Punisher", "Spiral", "Pin", "Molot", "Aphid", "Gekko", "Molot_T", "Thunder", "Trident", "Nashorn", "Noricum", "Kang_Dae", "Zenit",
-    
-    # T2 Weapons
-    "Magnum", "Pinata", "Orkan", "Hydra", "Tulumbas", "Trebuchet", "Arbalest", "Taran", "Zeus", "Gust", "Avenger", "Ballista", "Storm", "Ion", "Sting", "Exodus",
-    \
-    # T3 Weapons
-    "Snaer", "Volt", "Halo", "Shredder", "Marquess", "Blaze", "Rime", "Spark", "Scald",
-    "Shocktrain", "Skadi", "Vortex", "Weber", "Corona", "Hussar", "Igniter", "Cryo", "Fainter", "Scourge", "Scorcher",
-    "Flux", "Chimera", "Hel", "Gauss", "Tempest", "Thermite", "Glory", "Avalanche", "Puncher", "Redeemer", "Dragoon",
-    "Viper", "Ember", "Calamity", "Glacier", "Incinerator",
-    
-    # T4 Weapons
-    "Magnetar", "Quarker", "Toxin", "Blight", "Cudgel", "Kramola", "Scatter", "Claw",
-    "Spear", "Taeja", "Needle", "Ksiphos", "Splinter", "Trickster", "Tamer", "Shifang",
-    "Morana", "Aramis", "Howler", "Smite", "Gangil", "ARM_L-83", "Hedjet", "Pow", "Elox", "Gladius",
-    "Wasp", "Pulsar", "Atomizer", "Venom", "Havoc", "Hazard", "Mace", "Razdor", "Jaw", "Yeoje",
-    "Spike", "Labrys", "Hurricane", "Shatter", "Deceiver", "Damper", "Leiming", "Chione",
-    "Porthos", "Discipline", "Growler", "Deshret", "Regulator", "Mogwan", "ARM_M-80", "Nanea", "Bash", "Murix",
-    "Hornet", "Prisma", "Bane", "Nucleon", "Decay", "Devastator", "Hammer", "Smuta", "Talon",
-    "Hwangje", "Stake", "Reaper", "Cestus", "Brisant", "Subduer", "Fengbao", "Jotunn", "Athos", "Dune", "Pshent",
-    "Piercer", "Boom", "Pilum",
-    
-    # 11.7 New Robot Weapons
-    "Hippo", "Kroko", "Liodari",
+SESSION_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/json,text/plain,*/*",
+    "Referer": "https://wiki.biligame.com/"
+}
 
-    # Ultimate (Robot / Titan / Shared)
-    "Ultimate_Halo", "Ultimate_ARM_L-85", "Ultimate_Blaze", "Ultimate_Shredder", "Ultimate_Storm",
-    "Ultimate_Taran", "Ultimate_Tulumbas", "Ultimate_Vortex",
-    "Ultimate_Orkan", "Ultimate_Corona", "Ultimate_Pulsar", "Ultimate_Punisher_T", "Ultimate_Ion",
-    "Ultimate_ARM_M-82", "Ultimate_Cryo", "Ultimate_Havoc", "Ultimate_Hussar", "Ultimate_Igniter",
-    "Ultimate_Scourge", "Ultimate_Shocktrain", "Ultimate_Wasp",
-    "Ultimate_Avenger", "Ultimate_Glory", "Ultimate_Calamity", "Ultimate_Dragoon", "Ultimate_Redeemer",
-    
-    # Titan Weaponry
-    "Vengeance", "Retaliator", "Tsar", "Gendarme", "Rupture", "Cuirassier",
-    "Cataclysm", "Grom", "Striker", "Bulava", "Basilisk", "Cyclone", "Squall", "Krait",
-    "Kisten", "Dazzler", "Gargantua", "Maha-Vajra", "Glaive", "Veyron", "Argon", "Tonans",
-    "Discordia", "Inferno", "Vendicatore", "Anguisher", "Arbiter", "Huginn", "Void", "Venire",
-    "Lantern", "Pantagruel", "Vajra", "Evora", "Oxy", "Fulgur", "Tumultus", "Pyro", "Muninn", "Chasm", "Vincere",
+def fetch_weapon_list():
+    urls = [
+        "https://wiki.biligame.com/wwr/%E6%AD%A6%E5%99%A8%E5%88%86%E7%B1%BB",
+        "https://wiki.biligame.com/wwr/%E6%B3%B0%E5%9D%A6%E6%AD%A6%E5%99%A8%E5%88%86%E7%B1%BB"
+    ]
 
-    # Ultimate Titan Weapons
-    "Ultimate_Gendarme", "Ultimate_Grom", "Ultimate_Squall", "Ultimate_Cyclone"
-]
+    excluded = {"Ancile", "G.A.S."}
+
+    seen = set()
+    weapon_list = []
+
+    for url in urls:
+        try:
+            response = requests.get(url, headers=SESSION_HEADERS, timeout=15)
+            if response.status_code != 200:
+                print(f"Failed to fetch {url}: HTTP {response.status_code}")
+                continue
+
+            html = response.text
+            found = re.findall(
+                r'<tr[^>]*class="divsort"[^>]*data-paramen="([^"]+)"',
+                html
+            )
+
+            for w in found:
+                if w in excluded:
+                    continue
+                if w not in seen:
+                    seen.add(w)
+                    weapon_list.append(w)
+
+        except Exception as e:
+            print(f"Error fetching {url}: {e}")
+            continue
+
+    print(f"Discovered {len(weapon_list)} weapons after exclusions.")
+    return weapon_list
 
 # Items to strictly ignore
 EXCLUDE_KEYS = [
@@ -177,7 +178,7 @@ def fetch_effect_data():
     url = "https://warrobots.fandom.com/wiki/Template:MasterWeaponEffect?action=raw"
     try:
         print("Fetching effect data from Fandom wiki...")
-        response = requests.get(url, timeout=15)
+        response = requests.get(url, timeout=10)
         if response.status_code == 200:
             EFFECT_DATA_CACHE = response.text
             return EFFECT_DATA_CACHE
@@ -229,8 +230,11 @@ def get_effect_values(weapon_name, effect_data):
 def get_weapon_data(weapon_name, effect_data=None):
     url = f"https://wiki.biligame.com/wwr/rest.php/v1/page/{weapon_name}"
     try:
-        response = requests.get(url, timeout=10)
-        if response.status_code != 200: return None
+        response = requests.get(url, headers=SESSION_HEADERS, timeout=10)
+        if response.status_code != 200:
+            print(f"REST miss: {weapon_name}")
+            return None
+
         
         source = response.json().get("source", "")
         raw_pairs = re.findall(r'\|([^=|\n]+)=([^|}\n]*)', source)
@@ -327,25 +331,34 @@ def get_weapon_data(weapon_name, effect_data=None):
 
 def main():
     final_data = {}
-    total = len(WEAPONS)
-    
-    # Fetch effect data once at the start
+
+    # Fetch weapon list dynamically
+    weapon_list = fetch_weapon_list()
+    total = len(weapon_list)
+
+    if total == 0:
+        print("No weapons found. Exiting.")
+        return
+
+    # Fetch effect data once
     effect_data = fetch_effect_data()
     if effect_data:
         print("Effect data loaded successfully!\n")
     else:
-        print("Warning: Could not load effect data. Effect values will not be included.\n")
-    
-    for index, name in enumerate(WEAPONS):
+        print("Warning: Effect data unavailable.\n")
+
+    for index, name in enumerate(weapon_list):
         print(f"[{index+1}/{total}] Processing {name}...")
         data = get_weapon_data(name, effect_data)
         if data:
             final_data[name] = data
-        time.sleep(0.1)
+        time.sleep(0.2)
 
     with open("weapons.json", "w", encoding="utf-8") as f:
         json.dump(final_data, f, ensure_ascii=False, indent=4)
-    print(f"\nFile 'weapons.json' has been generated with {len(final_data)} weapons.")
+
+    print(f"\nFile 'weapons.json' generated with {len(final_data)} weapons.")
+
 
 if __name__ == "__main__":
     main()
