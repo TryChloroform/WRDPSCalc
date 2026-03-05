@@ -66,12 +66,32 @@ function getBypassFraction(weaponData, level) {
     return 0;
 }
 
+/* =========================
+   HELPER: Deterministic Random
+========================= */
+function mulberry32(a) {
+    return function () {
+        let t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+}
+
 
 /* =========================
    TTK CALCULATION
 ========================= */
 function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = null, pilotConfig = [], accuracyConfig = null, intelConfig = null) {
     const safe = (v, d = 0) => Number.isFinite(v) ? v : d;
+
+    // --- Random Seed Setup ---
+    let seed = parseInt(document.getElementById('seedInput').value);
+    if (isNaN(seed)) {
+        seed = Math.floor(Math.random() * 1000000);
+        document.getElementById('seedInput').value = seed;
+    }
+    const rng = mulberry32(seed);
 
     // --- Accuracy Setup ---
     const applyAccuracy = accuracyConfig?.enabled || false;
@@ -481,7 +501,7 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
                     actualMisses = w.particlesPerShot - actualHits;
                 } else {
                     // For single-particle weapons, use random chance
-                    if (Math.random() > w.hitRate) {
+                    if (rng() > w.hitRate) {
                         actualHits = 0;
                         actualMisses = 1;
                     }
@@ -615,4 +635,151 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             effects: effectTimeline
         }
     };
+}
+
+/* =========================
+   IMAGE EXPORT
+========================= */
+async function downloadResultImage() {
+    if (!lastResult) return alert('Please calculate TTK first.');
+
+    const result = lastResult;
+    const health = lastHealth;
+
+    // ── 1. Config info ────────────────────────────────────────────────────
+    const friendlyIntelLabels = ['0%', '20% (+5% dmg)', '40% (+10% dmg)', '60% (+15% dmg)', '80% (+20% dmg)', '100% (+25% dmg)'];
+    const enemyIntelLabels    = ['0%', '20% (-1% dmg)', '40% (-2% dmg)',  '60% (-3% dmg)',  '80% (-4% dmg)',  '100% (-5% dmg)'];
+    const fiVal = parseInt(document.getElementById('friendlyIntelSlider').value);
+    const eiVal = parseInt(document.getElementById('enemyIntelSlider').value);
+    const healingModuleText = document.getElementById('healingModule').options[document.getElementById('healingModule').selectedIndex].text;
+    const healThreshold = document.getElementById('healThreshold').value + '%';
+    const pilotText = Array.from(document.querySelectorAll('.skill-item')).map(item =>
+        `${document.getElementById(`${item.id}_name`).value} (Tier ${document.getElementById(`${item.id}_tier`).value})`
+    ).join(', ') || 'None';
+    const weaponLines = Array.from(document.querySelectorAll('.weapon-item')).map(w => {
+        const name = document.getElementById(`${w.id}_weapon`).value;
+        const lvlSel = document.getElementById(`${w.id}_level`);
+        const lvl = lvlSel.options[lvlSel.selectedIndex]?.text || '';
+        return `<strong>${name}</strong> (${lvl})`;
+    }).join(', ');
+
+    document.getElementById('cap-config').innerHTML = `
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div>
+                <div style="margin-bottom:4px;"><strong>Weapons:</strong> ${weaponLines}</div>
+                <div><strong>Target:</strong> ${document.getElementById('healthInput').value} HP &nbsp;|&nbsp; ${document.getElementById('defenceInput').value} DP &nbsp;|&nbsp; ${document.getElementById('targetType').value}</div>
+                <div><strong>Distance:</strong> ${document.getElementById('distanceDisplay').textContent} &nbsp;|&nbsp; <strong>Seed:</strong> ${document.getElementById('seedInput').value}</div>
+            </div>
+            <div>
+                <div><strong>Friendly Intel:</strong> ${friendlyIntelLabels[fiVal]}</div>
+                <div><strong>Enemy Intel:</strong> ${enemyIntelLabels[eiVal]}</div>
+                <div><strong>Healing Module:</strong> ${healingModuleText} @ ${healThreshold}</div>
+                <div><strong>Pilot Skills:</strong> ${pilotText}</div>
+            </div>
+        </div>
+    `;
+
+    // ── 2. Mirror live result values ──────────────────────────────────────
+    document.getElementById('cap-ttk-value').textContent  = document.getElementById('ttkValue').textContent;
+    document.getElementById('cap-totalShots').textContent     = document.getElementById('totalShots').textContent;
+    document.getElementById('cap-totalDamage').textContent    = document.getElementById('totalDamage').textContent;
+    document.getElementById('cap-damageMitigated').textContent= document.getElementById('damageMitigated').textContent;
+    document.getElementById('cap-combinedDPS').textContent    = document.getElementById('combinedDPS').textContent;
+
+    // Weapon breakdown rows
+    document.getElementById('cap-breakdownBody').innerHTML =
+        document.getElementById('breakdownBody').innerHTML;
+
+    // ── 3. Share URL ──────────────────────────────────────────────────────
+    const state = {
+        h: document.getElementById('healthInput').value,
+        d: document.getElementById('defenceInput').value,
+        dist: document.getElementById('distanceInput').value,
+        tt: document.getElementById('targetType').value,
+        fi: document.getElementById('friendlyIntelSlider').value,
+        ei: document.getElementById('enemyIntelSlider').value,
+        hm: document.getElementById('healingModule').value,
+        ht: document.getElementById('healThreshold').value,
+        w: Array.from(document.querySelectorAll('.weapon-item')).map(item => ({
+            s: document.getElementById(`${item.id}_slot`).value,
+            t: document.getElementById(`${item.id}_tier`).value,
+            n: document.getElementById(`${item.id}_weapon`).value,
+            l: document.getElementById(`${item.id}_level`).value
+        })),
+        p: Array.from(document.querySelectorAll('.skill-item')).map(item => ({
+            n: document.getElementById(`${item.id}_name`).value,
+            t: document.getElementById(`${item.id}_tier`).value
+        })),
+        s: document.getElementById('seedInput').value || Math.floor(Math.random() * 1000000)
+    };
+    const shareUrl = window.location.origin + window.location.pathname + '?config=' + btoa(JSON.stringify(state));
+    document.getElementById('cap-url').innerHTML = `<strong>🔗 Share URL:</strong> ${shareUrl}`;
+
+    // ── 4. Re-render chart fresh at exact canvas size ─────────────────────
+    const captureCanvas = document.getElementById('capture-chart-canvas');
+    // Dimensions already set as attributes in HTML (780×300); just ensure it
+    captureCanvas.width  = 740;
+    captureCanvas.height = 300;
+
+    if (window._exportChart) { window._exportChart.destroy(); window._exportChart = null; }
+
+    const timeline = result.timeline;
+    const healthPoints    = timeline.enemyHealth.map(p => ({ x: p.time, y: p.health / health }));
+    const maxHealthPoints = timeline.enemyHealth.map(p => ({ x: p.time, y: p.maxHealth / health }));
+    const healMarkers     = timeline.healTimeline.map(h => ({ x: h.time, y: 0.05 }));
+
+    const effectDatasets = [];
+    if (timeline.effects.some(e => e.freeze > 0))
+        effectDatasets.push({ label: 'Freeze %',          data: timeline.effects.map(p => ({ x: p.time, y: p.freeze / 100 })),         borderColor: '#3b82f6', borderWidth: 1.5, borderDash: [2,2], pointRadius: 0, yAxisID: 'y-health' });
+    if (timeline.effects.some(e => e.blast > 0))
+        effectDatasets.push({ label: 'Blast %',           data: timeline.effects.map(p => ({ x: p.time, y: p.blast / 100 })),          borderColor: '#f97316', borderWidth: 1.5, borderDash: [2,2], pointRadius: 0, yAxisID: 'y-health' });
+    if (timeline.effects.some(e => e.lockdown > 0))
+        effectDatasets.push({ label: 'Lockdown %',        data: timeline.effects.map(p => ({ x: p.time, y: p.lockdown / 100 })),       borderColor: '#eab308', borderWidth: 1.5, borderDash: [2,2], pointRadius: 0, yAxisID: 'y-health' });
+    if (timeline.effects.some(e => e.corrosion > 0))
+        effectDatasets.push({ label: 'Pending Corrosion', data: timeline.effects.map(p => ({ x: p.time, y: p.corrosion / health })),   borderColor: '#a855f7', borderWidth: 1.5, borderDash: [3,3], pointRadius: 0, yAxisID: 'y-health', fill: false });
+
+    const colors = ['#36A2EB','#FF6384','#FF9F40','#4BC0C0','#9966FF','#FFCD56'];
+    const weaponDatasets = Object.keys(timeline.weapons).map((wName, idx) => ({
+        label: wName,
+        data: timeline.weapons[wName].map(p => ({ x: p.time, y: p.ammo / (weaponsData[wName]?.clip_size || 100) })),
+        borderColor: colors[idx % colors.length], borderWidth: 1, pointRadius: 0, yAxisID: 'y-ammo', hidden: false
+    }));
+
+    window._exportChart = new Chart(captureCanvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            datasets: [
+                { label: 'Current HP',   data: healthPoints,    borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', fill: true, borderWidth: 2, pointRadius: 0, yAxisID: 'y-health', order: 1 },
+                { label: 'Max HP Cap',   data: maxHealthPoints, borderColor: '#64748b', borderDash: [5,5], borderWidth: 2, pointRadius: 0, yAxisID: 'y-health', order: 2 },
+                { label: 'Heal Trigger', data: healMarkers,     type: 'scatter', backgroundColor: '#22c55e', pointStyle: 'triangle', pointRadius: 8, yAxisID: 'y-health', order: 0 },
+                ...effectDatasets, ...weaponDatasets
+            ]
+        },
+        options: {
+            responsive: false,
+            animation: false,
+            scales: {
+                x: { type: 'linear', title: { display: true, text: 'Time (s)' } },
+                'y-health': { type: 'linear', position: 'left',  min: 0, max: 1.1, title: { display: true, text: 'Health / Effect Fraction' } },
+                'y-ammo':   { type: 'linear', position: 'right', min: 0, max: 1, display: false }
+            },
+            plugins: { tooltip: { enabled: false } }
+        }
+    });
+
+    // ── 5. Capture ────────────────────────────────────────────────────────
+    await new Promise(r => setTimeout(r, 80));
+
+    html2canvas(document.getElementById('capture-area'), {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#f0f2f5',
+        width: 840,
+        windowWidth: 1200
+    }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `TTK-Report-${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
 }

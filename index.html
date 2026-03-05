@@ -351,6 +351,7 @@
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 
 <body>
@@ -458,6 +459,17 @@
             </div>
         </div>
 
+        <div class="collapsible-section">
+            <button class="collapse-header" onclick="toggleCollapse(this)">
+                Random Seed
+                <span class="arrow-icon">▼</span>
+            </button>
+            <div class="collapse-content">
+                <label for="seedInput">Random Seed:</label>
+                <input type="number" id="seedInput" placeholder="Enter a number">
+            </div>
+        </div>
+
         <button class="calculate-btn" onclick="handleCalculateTTK()">Calculate Time to Kill</button>
 
         <div class="results" id="results">
@@ -517,6 +529,90 @@
             </div>
 
             <button class="add-weapon-btn" onclick="generateShareURL()">Copy Shareable Link</button>
+
+            <button class="add-weapon-btn" onclick="downloadResultImage()">Download Result Image</button>
+
+            <!-- Capture area: mirrors the results section exactly -->
+            <div id="capture-area"
+                style="position:absolute; left:-9999px; width:840px; background:#f0f2f5; padding:20px;">
+                <div
+                    style="background:white; padding:30px; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+
+                    <h1
+                        style="font-family:'Reckoner Bold','Impact',sans-serif; text-transform:uppercase; letter-spacing:1px; font-size:32px; font-weight:normal; color:#1a1a1a; margin-bottom:25px;">
+                        TTK Calculator — Results</h1>
+
+                    <!-- Config summary block (extra, not in live results) -->
+                    <div id="cap-config" class="config-section"
+                        style="margin-bottom:20px; font-size:13px; line-height:1.8;"></div>
+
+                    <!-- TTK box — same class as live -->
+                    <div class="ttk-box" style="margin-bottom:25px;">
+                        <div class="ttk-label">Time to Kill</div>
+                        <div class="ttk-value" id="cap-ttk-value"></div>
+                    </div>
+
+                    <!-- Summary stats table — same structure as live -->
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Total Shots Fired</td>
+                                <td id="cap-totalShots"></td>
+                            </tr>
+                            <tr>
+                                <td>Total Damage Dealt</td>
+                                <td id="cap-totalDamage"></td>
+                            </tr>
+                            <tr>
+                                <td>Damage Mitigated (Defence)</td>
+                                <td id="cap-damageMitigated"></td>
+                            </tr>
+                            <tr>
+                                <td>Combined DPS</td>
+                                <td id="cap-combinedDPS"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Weapon breakdown — same structure as live -->
+                    <h3 style="margin-bottom:15px; color:#495057;">Weapon Breakdown</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Weapon</th>
+                                <th>Shots</th>
+                                <th>Damage</th>
+                                <th>Reloads</th>
+                                <th>Hit Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cap-breakdownBody"></tbody>
+                    </table>
+
+                    <!-- Timeline — same structure as live -->
+                    <div class="timeline-section">
+                        <div class="timeline-header">
+                            <h3>Simulation Timeline</h3>
+                        </div>
+                        <div style="position:relative; width:740px; height:300px; overflow:hidden;">
+                            <canvas id="capture-chart-canvas" width="700" height="300"
+                                style="display:block; width:700px; height:300px;"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Share URL footer -->
+                    <div id="cap-url"
+                        style="margin-top:20px; background:#f8f9fa; padding:10px 15px; border-radius:6px; border:1px solid #e9ecef; font-size:11px; color:#6c757d; word-break:break-all;">
+                    </div>
+
+                </div>
+            </div>
         </div>
     </div>
 
@@ -526,6 +622,8 @@
         let weaponCount = 0;
         const MAX_WEAPONS = 6;
         let timelineChart = null;
+        let lastResult = null;
+        let lastHealth = null;
         const slotOrder = { "Light": 1, "Medium": 2, "Heavy": 3, "Beta": 4, "Alpha": 5 };
 
         // --- Slider Logic ---
@@ -712,6 +810,8 @@
                 });
 
                 document.getElementById('results').classList.add('show');
+                lastResult = result;
+                lastHealth = health;
                 renderTimeline(result.timeline, health);
 
             } catch (e) {
@@ -721,7 +821,7 @@
         }
 
         // --- Chart.js Visualization ---
-        function renderTimeline(timeline, maxStartHealth) {
+        function renderTimeline(timeline, maxStartHealth, showAmmo = false) {
             const ctx = document.getElementById('timelineChart').getContext('2d');
             if (timelineChart) timelineChart.destroy();
 
@@ -815,7 +915,7 @@
                     borderWidth: 1,
                     pointRadius: 0,
                     yAxisID: 'y-ammo',
-                    hidden: true
+                    hidden: !showAmmo
                 });
             });
 
@@ -1034,7 +1134,9 @@
                 p: Array.from(document.querySelectorAll('.skill-item')).map(item => ({
                     n: document.getElementById(`${item.id}_name`).value,
                     t: document.getElementById(`${item.id}_tier`).value
-                }))
+                })),
+                // Random seed
+                s: document.getElementById('seedInput').value || Math.floor(Math.random() * 1000000)
             };
 
             const encodedState = btoa(JSON.stringify(state));
@@ -1060,12 +1162,15 @@
                     document.getElementById('healthInput').value = state.h;
                     document.getElementById('healthSlider').value = healthToSlider(state.h);
                     document.getElementById('defenceInput').value = state.d;
+                    document.getElementById('defenceSlider').value = state.d;
                     document.getElementById('distanceInput').value = state.dist;
+                    document.getElementById('distanceSlider').value = state.dist;
                     document.getElementById('targetType').value = state.tt;
                     document.getElementById('friendlyIntelSlider').value = state.fi;
                     document.getElementById('enemyIntelSlider').value = state.ei;
                     document.getElementById('healingModule').value = state.hm;
                     document.getElementById('healThreshold').value = state.ht;
+
 
                     // Rebuild Weapons
                     state.w.forEach((w, index) => {
@@ -1088,8 +1193,13 @@
                         document.getElementById(`${id}_tier`).value = p.t;
                     });
 
+                    // Random Seed
+                    if (state.s) {
+                        document.getElementById('seedInput').value = state.s;
+                    }
+
                     // Trigger text updates for sliders
-                    document.querySelectorAll('input[type=range]').forEach(i => i.dispatchEvent(new Event('input')));
+                    document.querySelectorAll('input[type=number]').forEach(i => i.dispatchEvent(new Event('input')));
 
                     // Auto-calculate if data is present
                     handleCalculateTTK();
