@@ -130,7 +130,6 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
         const enemyIntel = intelConfig?.enemy || 0;
         const friendlyDamageMult = INTEL_BONUSES.friendly[friendlyIntel];
         const enemyDamageMult = INTEL_BONUSES.enemy_damage[enemyIntel];
-        const enemyEffectMult = INTEL_BONUSES.enemy_effect[enemyIntel];
 
         // Defence Calc
         const bypass = getBypassFraction(data, levelNumber);
@@ -291,6 +290,10 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
             corrosion: pendingCorrosion
         });
     };
+
+    // Pre-calculate intel effect multiplier outside weapon loop
+    const enemyIntel = intelConfig?.enemy || 0;
+    const enemyEffectMult = INTEL_BONUSES.enemy_effect[enemyIntel];
 
     let iterations = 0;
     const MAX_ITERATIONS = 1_000_000;

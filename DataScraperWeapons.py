@@ -179,6 +179,15 @@ def fetch_effect_data():
     try:
         print("Fetching effect data from Fandom wiki...")
         response = requests.get(url, timeout=10)
+        if response.status_code != 200:
+            try:
+                print(f"Failed to fetch from Fandom, attempting fallback file...")
+                with open("Template_MasterWeaponEffect.txt", "r", encoding="utf-8") as f:
+                    EFFECT_DATA_CACHE = f.read()
+                    return EFFECT_DATA_CACHE
+            except FileNotFoundError:
+                print("Fallback file not found.")
+                return None
         if response.status_code == 200:
             EFFECT_DATA_CACHE = response.text
             return EFFECT_DATA_CACHE

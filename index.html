@@ -510,13 +510,13 @@
             <div class="timeline-section">
                 <div class="timeline-header">
                     <h3>Simulation Timeline</h3>
-                    <button id="expandBtn" onclick="toggleFullscreen()"
-                        style="padding:6px 12px; cursor:pointer;">Expand</button>
                 </div>
                 <div id="timelineContainer" style="position:relative; width:100%;">
                     <canvas id="timelineChart"></canvas>
                 </div>
             </div>
+
+            <button class="add-weapon-btn" onclick="generateShareURL()">Copy Shareable Link</button>
         </div>
     </div>
 
@@ -893,19 +893,6 @@
             });
         }
 
-        // --- Fullscreen Toggle ---
-        function toggleFullscreen() {
-            const el = document.getElementById('timelineContainer');
-            el.classList.toggle('fs-mode');
-            if (el.classList.contains('fs-mode')) {
-                el.style.position = 'fixed'; el.style.inset = '0'; el.style.background = 'white'; el.style.zIndex = '1000'; el.style.padding = '40px';
-                document.getElementById('expandBtn').textContent = 'Close';
-            } else {
-                el.style = 'position:relative; width:100%;';
-                document.getElementById('expandBtn').textContent = 'Expand';
-            }
-        }
-
         // --- Setup Dynamic Selects ---
         function createSlotOptions() {
             const slots = new Set();
@@ -1025,10 +1012,94 @@
             if (lSel.options.length > 1) lSel.selectedIndex = lSel.options.length - 1;
         };
 
+        // Share settings
+        function generateShareURL() {
+            const state = {
+                h: document.getElementById('healthInput').value,
+                d: document.getElementById('defenceInput').value,
+                dist: document.getElementById('distanceInput').value,
+                tt: document.getElementById('targetType').value,
+                fi: document.getElementById('friendlyIntelSlider').value,
+                ei: document.getElementById('enemyIntelSlider').value,
+                hm: document.getElementById('healingModule').value,
+                ht: document.getElementById('healThreshold').value,
+                // Map weapons
+                w: Array.from(document.querySelectorAll('.weapon-item')).map(item => ({
+                    s: document.getElementById(`${item.id}_slot`).value,
+                    t: document.getElementById(`${item.id}_tier`).value,
+                    n: document.getElementById(`${item.id}_weapon`).value,
+                    l: document.getElementById(`${item.id}_level`).value
+                })),
+                // Map skills
+                p: Array.from(document.querySelectorAll('.skill-item')).map(item => ({
+                    n: document.getElementById(`${item.id}_name`).value,
+                    t: document.getElementById(`${item.id}_tier`).value
+                }))
+            };
+
+            const encodedState = btoa(JSON.stringify(state));
+            const shareUrl = window.location.origin + window.location.pathname + '?config=' + encodedState;
+
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                alert("Shareable URL copied to clipboard!");
+            });
+        }
+
         // Init
         document.addEventListener("DOMContentLoaded", async () => {
             await loadWeaponsJSON();
-            addWeapon();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const configData = urlParams.get('config');
+
+            if (configData) {
+                try {
+                    const state = JSON.parse(atob(configData));
+
+                    // Set basic configs
+                    document.getElementById('healthInput').value = state.h;
+                    document.getElementById('healthSlider').value = healthToSlider(state.h);
+                    document.getElementById('defenceInput').value = state.d;
+                    document.getElementById('distanceInput').value = state.dist;
+                    document.getElementById('targetType').value = state.tt;
+                    document.getElementById('friendlyIntelSlider').value = state.fi;
+                    document.getElementById('enemyIntelSlider').value = state.ei;
+                    document.getElementById('healingModule').value = state.hm;
+                    document.getElementById('healThreshold').value = state.ht;
+
+                    // Rebuild Weapons
+                    state.w.forEach((w, index) => {
+                        addWeapon();
+                        const id = `weapon${index + 1}`;
+                        document.getElementById(`${id}_slot`).value = w.s;
+                        onSlotChange(id);
+                        document.getElementById(`${id}_tier`).value = w.t;
+                        onTierChange(id);
+                        document.getElementById(`${id}_weapon`).value = w.n;
+                        onWeaponChange(id);
+                        document.getElementById(`${id}_level`).value = w.l;
+                    });
+
+                    // Rebuild Skills
+                    state.p.forEach((p, index) => {
+                        addPilotSkill();
+                        const id = `skill${index + 1}`;
+                        document.getElementById(`${id}_name`).value = p.n;
+                        document.getElementById(`${id}_tier`).value = p.t;
+                    });
+
+                    // Trigger text updates for sliders
+                    document.querySelectorAll('input[type=range]').forEach(i => i.dispatchEvent(new Event('input')));
+
+                    // Auto-calculate if data is present
+                    handleCalculateTTK();
+                } catch (e) {
+                    console.error("Failed to load config from URL", e);
+                    addWeapon(); // Fallback
+                }
+            } else {
+                addWeapon();
+            }
         });
 
     </script>
