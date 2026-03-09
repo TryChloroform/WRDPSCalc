@@ -528,7 +528,7 @@
                 </div>
             </div>
 
-            <button class="add-weapon-btn" onclick="generateShareURL()">Copy Shareable Link</button>
+            <button class="add-weapon-btn" onclick="copyShareURL()">Copy Shareable Link</button>
 
             <button class="add-weapon-btn" onclick="downloadResultImage()">Download Result Image</button>
 
@@ -1113,34 +1113,8 @@
         };
 
         // Share settings
-        function generateShareURL() {
-            const state = {
-                h: document.getElementById('healthInput').value,
-                d: document.getElementById('defenceInput').value,
-                dist: document.getElementById('distanceInput').value,
-                tt: document.getElementById('targetType').value,
-                fi: document.getElementById('friendlyIntelSlider').value,
-                ei: document.getElementById('enemyIntelSlider').value,
-                hm: document.getElementById('healingModule').value,
-                ht: document.getElementById('healThreshold').value,
-                // Map weapons
-                w: Array.from(document.querySelectorAll('.weapon-item')).map(item => ({
-                    s: document.getElementById(`${item.id}_slot`).value,
-                    t: document.getElementById(`${item.id}_tier`).value,
-                    n: document.getElementById(`${item.id}_weapon`).value,
-                    l: document.getElementById(`${item.id}_level`).value
-                })),
-                // Map skills
-                p: Array.from(document.querySelectorAll('.skill-item')).map(item => ({
-                    n: document.getElementById(`${item.id}_name`).value,
-                    t: document.getElementById(`${item.id}_tier`).value
-                })),
-                // Random seed
-                s: document.getElementById('seedInput').value || Math.floor(Math.random() * 1000000)
-            };
-
-            const encodedState = btoa(JSON.stringify(state));
-            const shareUrl = window.location.origin + window.location.pathname + '?config=' + encodedState;
+        function copyShareURL() {
+            const shareUrl = generateShareURL()
 
             navigator.clipboard.writeText(shareUrl).then(() => {
                 alert("Shareable URL copied to clipboard!");

@@ -638,6 +638,41 @@ function calculateTTK(enemyHealth, enemyDefence, weaponConfigs, healingConfig = 
 }
 
 /* =========================
+   LINK EXPORT
+========================= */
+function generateShareURL() {
+    const state = {
+        h: document.getElementById('healthInput').value,
+        d: document.getElementById('defenceInput').value,
+        dist: document.getElementById('distanceInput').value,
+        tt: document.getElementById('targetType').value,
+        fi: document.getElementById('friendlyIntelSlider').value,
+        ei: document.getElementById('enemyIntelSlider').value,
+        hm: document.getElementById('healingModule').value,
+        ht: document.getElementById('healThreshold').value,
+        // Map weapons
+        w: Array.from(document.querySelectorAll('.weapon-item')).map(item => ({
+            s: document.getElementById(`${item.id}_slot`).value,
+            t: document.getElementById(`${item.id}_tier`).value,
+            n: document.getElementById(`${item.id}_weapon`).value,
+            l: document.getElementById(`${item.id}_level`).value
+        })),
+        // Map skills
+        p: Array.from(document.querySelectorAll('.skill-item')).map(item => ({
+            n: document.getElementById(`${item.id}_name`).value,
+            t: document.getElementById(`${item.id}_tier`).value
+        })),
+        // Random seed
+        s: document.getElementById('seedInput').value || Math.floor(Math.random() * 1000000)
+    };
+
+    const encodedState = btoa(JSON.stringify(state));
+    const shareUrl = window.location.origin + window.location.pathname + '?config=' + encodedState;
+
+    return shareUrl
+}
+
+/* =========================
    IMAGE EXPORT
 ========================= */
 async function downloadResultImage() {
@@ -648,7 +683,7 @@ async function downloadResultImage() {
 
     // ── 1. Config info ────────────────────────────────────────────────────
     const friendlyIntelLabels = ['0%', '20% (+5% dmg)', '40% (+10% dmg)', '60% (+15% dmg)', '80% (+20% dmg)', '100% (+25% dmg)'];
-    const enemyIntelLabels    = ['0%', '20% (-1% dmg)', '40% (-2% dmg)',  '60% (-3% dmg)',  '80% (-4% dmg)',  '100% (-5% dmg)'];
+    const enemyIntelLabels = ['0%', '20% (-1% dmg)', '40% (-2% dmg)', '60% (-3% dmg)', '80% (-4% dmg)', '100% (-5% dmg)'];
     const fiVal = parseInt(document.getElementById('friendlyIntelSlider').value);
     const eiVal = parseInt(document.getElementById('enemyIntelSlider').value);
     const healingModuleText = document.getElementById('healingModule').options[document.getElementById('healingModule').selectedIndex].text;
@@ -680,65 +715,44 @@ async function downloadResultImage() {
     `;
 
     // ── 2. Mirror live result values ──────────────────────────────────────
-    document.getElementById('cap-ttk-value').textContent  = document.getElementById('ttkValue').textContent;
-    document.getElementById('cap-totalShots').textContent     = document.getElementById('totalShots').textContent;
-    document.getElementById('cap-totalDamage').textContent    = document.getElementById('totalDamage').textContent;
-    document.getElementById('cap-damageMitigated').textContent= document.getElementById('damageMitigated').textContent;
-    document.getElementById('cap-combinedDPS').textContent    = document.getElementById('combinedDPS').textContent;
+    document.getElementById('cap-ttk-value').textContent = document.getElementById('ttkValue').textContent;
+    document.getElementById('cap-totalShots').textContent = document.getElementById('totalShots').textContent;
+    document.getElementById('cap-totalDamage').textContent = document.getElementById('totalDamage').textContent;
+    document.getElementById('cap-damageMitigated').textContent = document.getElementById('damageMitigated').textContent;
+    document.getElementById('cap-combinedDPS').textContent = document.getElementById('combinedDPS').textContent;
 
     // Weapon breakdown rows
     document.getElementById('cap-breakdownBody').innerHTML =
         document.getElementById('breakdownBody').innerHTML;
 
     // ── 3. Share URL ──────────────────────────────────────────────────────
-    const state = {
-        h: document.getElementById('healthInput').value,
-        d: document.getElementById('defenceInput').value,
-        dist: document.getElementById('distanceInput').value,
-        tt: document.getElementById('targetType').value,
-        fi: document.getElementById('friendlyIntelSlider').value,
-        ei: document.getElementById('enemyIntelSlider').value,
-        hm: document.getElementById('healingModule').value,
-        ht: document.getElementById('healThreshold').value,
-        w: Array.from(document.querySelectorAll('.weapon-item')).map(item => ({
-            s: document.getElementById(`${item.id}_slot`).value,
-            t: document.getElementById(`${item.id}_tier`).value,
-            n: document.getElementById(`${item.id}_weapon`).value,
-            l: document.getElementById(`${item.id}_level`).value
-        })),
-        p: Array.from(document.querySelectorAll('.skill-item')).map(item => ({
-            n: document.getElementById(`${item.id}_name`).value,
-            t: document.getElementById(`${item.id}_tier`).value
-        })),
-        s: document.getElementById('seedInput').value || Math.floor(Math.random() * 1000000)
-    };
-    const shareUrl = window.location.origin + window.location.pathname + '?config=' + btoa(JSON.stringify(state));
+    const shareUrl = generateShareURL()
     document.getElementById('cap-url').innerHTML = `<strong>🔗 Share URL:</strong> ${shareUrl}`;
 
     // ── 4. Re-render chart fresh at exact canvas size ─────────────────────
     const captureCanvas = document.getElementById('capture-chart-canvas');
     // Dimensions already set as attributes in HTML (780×300); just ensure it
-    captureCanvas.width  = 740;
+    captureCanvas.width = 740;
     captureCanvas.height = 300;
 
     if (window._exportChart) { window._exportChart.destroy(); window._exportChart = null; }
 
     const timeline = result.timeline;
-    const healthPoints    = timeline.enemyHealth.map(p => ({ x: p.time, y: p.health / health }));
+    const healthPoints = timeline.enemyHealth.map(p => ({ x: p.time, y: p.health / health }));
     const maxHealthPoints = timeline.enemyHealth.map(p => ({ x: p.time, y: p.maxHealth / health }));
-    const healMarkers     = timeline.healTimeline.map(h => ({ x: h.time, y: 0.05 }));
+    const healMarkers = timeline.healTimeline.map(h => ({ x: h.time, y: 0.05 }));
 
     const effectDatasets = [];
     if (timeline.effects.some(e => e.freeze > 0))
-        effectDatasets.push({ label: 'Freeze %',          data: timeline.effects.map(p => ({ x: p.time, y: p.freeze / 100 })),         borderColor: '#3b82f6', borderWidth: 1.5, borderDash: [2,2], pointRadius: 0, yAxisID: 'y-health' });
+        effectDatasets.push({ label: 'Freeze %', data: timeline.effects.map(p => ({ x: p.time, y: p.freeze / 100 })), borderColor: '#3b82f6', borderWidth: 1.5, borderDash: [2, 2], pointRadius: 0, yAxisID: 'y-health' });
     if (timeline.effects.some(e => e.blast > 0))
-        effectDatasets.push({ label: 'Blast %',           data: timeline.effects.map(p => ({ x: p.time, y: p.blast / 100 })),          borderColor: '#f97316', borderWidth: 1.5, borderDash: [2,2], pointRadius: 0, yAxisID: 'y-health' });
+        effectDatasets.push({ label: 'Blast %', data: timeline.effects.map(p => ({ x: p.time, y: p.blast / 100 })), borderColor: '#f97316', borderWidth: 1.5, borderDash: [2, 2], pointRadius: 0, yAxisID: 'y-health' });
     if (timeline.effects.some(e => e.lockdown > 0))
-        effectDatasets.push({ label: 'Lockdown %',        data: timeline.effects.map(p => ({ x: p.time, y: p.lockdown / 100 })),       borderColor: '#eab308', borderWidth: 1.5, borderDash: [2,2], pointRadius: 0, yAxisID: 'y-health' });
+        effectDatasets.push({ label: 'Lockdown %', data: timeline.effects.map(p => ({ x: p.time, y: p.lockdown / 100 })), borderColor: '#eab308', borderWidth: 1.5, borderDash: [2, 2], pointRadius: 0, yAxisID: 'y-health' });
     if (timeline.effects.some(e => e.corrosion > 0))
-        effectDatasets.push({ label: 'Pending Corrosion', data: timeline.effects.map(p => ({ x: p.time, y: p.corrosion / health })),   borderColor: '#a855f7', borderWidth: 1.5, borderDash: [3,3], pointRadius: 0, yAxisID: 'y-health', fill: false });
+        effectDatasets.push({ label: 'Pending Corrosion', data: timeline.effects.map(p => ({ x: p.time, y: p.corrosion / health })), borderColor: '#a855f7', borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0, yAxisID: 'y-health', fill: false });
 
-    const colors = ['#36A2EB','#FF6384','#FF9F40','#4BC0C0','#9966FF','#FFCD56'];
+    const colors = ['#36A2EB', '#FF6384', '#FF9F40', '#4BC0C0', '#9966FF', '#FFCD56'];
     const weaponDatasets = Object.keys(timeline.weapons).map((wName, idx) => ({
         label: wName,
         data: timeline.weapons[wName].map(p => ({ x: p.time, y: p.ammo / (weaponsData[wName]?.clip_size || 100) })),
@@ -749,9 +763,9 @@ async function downloadResultImage() {
         type: 'line',
         data: {
             datasets: [
-                { label: 'Current HP',   data: healthPoints,    borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', fill: true, borderWidth: 2, pointRadius: 0, yAxisID: 'y-health', order: 1 },
-                { label: 'Max HP Cap',   data: maxHealthPoints, borderColor: '#64748b', borderDash: [5,5], borderWidth: 2, pointRadius: 0, yAxisID: 'y-health', order: 2 },
-                { label: 'Heal Trigger', data: healMarkers,     type: 'scatter', backgroundColor: '#22c55e', pointStyle: 'triangle', pointRadius: 8, yAxisID: 'y-health', order: 0 },
+                { label: 'Current HP', data: healthPoints, borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', fill: true, borderWidth: 2, pointRadius: 0, yAxisID: 'y-health', order: 1 },
+                { label: 'Max HP Cap', data: maxHealthPoints, borderColor: '#64748b', borderDash: [5, 5], borderWidth: 2, pointRadius: 0, yAxisID: 'y-health', order: 2 },
+                { label: 'Heal Trigger', data: healMarkers, type: 'scatter', backgroundColor: '#22c55e', pointStyle: 'triangle', pointRadius: 8, yAxisID: 'y-health', order: 0 },
                 ...effectDatasets, ...weaponDatasets
             ]
         },
@@ -760,8 +774,8 @@ async function downloadResultImage() {
             animation: false,
             scales: {
                 x: { type: 'linear', title: { display: true, text: 'Time (s)' } },
-                'y-health': { type: 'linear', position: 'left',  min: 0, max: 1.1, title: { display: true, text: 'Health / Effect Fraction' } },
-                'y-ammo':   { type: 'linear', position: 'right', min: 0, max: 1, display: false }
+                'y-health': { type: 'linear', position: 'left', min: 0, max: 1.1, title: { display: true, text: 'Health / Effect Fraction' } },
+                'y-ammo': { type: 'linear', position: 'right', min: 0, max: 1, display: false }
             },
             plugins: { tooltip: { enabled: false } }
         }
