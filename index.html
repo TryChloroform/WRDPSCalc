@@ -384,11 +384,8 @@
 
             <div class="config-row">
                 <div class="config-item">
-                    <label>Target Type</label>
-                    <select id="targetType">
-                        <option value="robot">Robot</option>
-                        <option value="titan">Titan</option>
-                    </select>
+                    <label>Target Diameter <span class="value-display" id="targetDiameterDisplay">10</span></label>
+                    <input type="range" id="targetDiameterSlider" min="5" max="50" value="10" step="1" style="width:100%">
                 </div>
 
                 <div class="config-item">
@@ -672,6 +669,9 @@
             document.getElementById('distanceInput').value = this.value;
             document.getElementById('distanceDisplay').textContent = this.value + 'm';
         });
+        document.getElementById('targetDiameterSlider').addEventListener('input', function () {
+            document.getElementById('targetDiameterDisplay').textContent = this.value;
+        });
         document.getElementById('distanceInput').addEventListener('input', function () {
             let v = Math.min(1100, Math.max(25, parseInt(this.value) || 25));
             this.value = v;
@@ -715,16 +715,21 @@
 
         // --- Config Getters ---
         function getAccuracyConfig() {
-            const targetType = document.getElementById("targetType").value;
-            const distance = parseFloat(document.getElementById("distanceInput").value);
-
+            const targetDiameter = parseFloat(
+                document.getElementById("targetDiameterSlider").value
+            );
+        
+            const distance = parseFloat(
+                document.getElementById("distanceInput").value
+            );
+        
             return {
                 enabled: true,
-                targetSize: TARGET_SIZES[targetType],
+                targetSize: targetDiameter,
                 distance: distance
             };
         }
-
+        
         function getIntelConfig() {
             const friendly = parseInt(document.getElementById("friendlyIntelSlider").value);
             const enemy = parseInt(document.getElementById("enemyIntelSlider").value);
