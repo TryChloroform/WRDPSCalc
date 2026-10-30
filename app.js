@@ -29,11 +29,6 @@ const EFFECT_CONFIG = {
     corrosion: { duration: 5 }
 };
 
-const TARGET_SIZES = {
-    robot: 10,
-    titan: 30
-};
-
 const INTEL_BONUSES = {
     friendly: [1.00, 1.05, 1.10, 1.15, 1.20, 1.25],  // 0%, 5%, 10%, 15%, 20%, 25%
     enemy_damage: [1.00, 0.99, 0.98, 0.97, 0.96, 0.95],  // 0%, -1%, -2%, -3%, -4%, -5%
@@ -645,7 +640,7 @@ function generateShareURL() {
         h: document.getElementById('healthInput').value,
         d: document.getElementById('defenceInput').value,
         dist: document.getElementById('distanceInput').value,
-        tt: document.getElementById('targetType').value,
+        td: document.getElementById('targetDiameterSlider').value,,
         fi: document.getElementById('friendlyIntelSlider').value,
         ei: document.getElementById('enemyIntelSlider').value,
         hm: document.getElementById('healingModule').value,
@@ -702,7 +697,7 @@ async function downloadResultImage() {
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
             <div>
                 <div style="margin-bottom:4px;"><strong>Weapons:</strong> ${weaponLines}</div>
-                <div><strong>Target:</strong> ${document.getElementById('healthInput').value} HP &nbsp;|&nbsp; ${document.getElementById('defenceInput').value} DP &nbsp;|&nbsp; ${document.getElementById('targetType').value}</div>
+                <div><strong>Target:</strong> ${document.getElementById('healthInput').value} HP &nbsp;|&nbsp; ${document.getElementById('defenceInput').value} DP &nbsp;|&nbsp; ${document.getElementById('targetDiameterSlider').value}</div>
                 <div><strong>Distance:</strong> ${document.getElementById('distanceDisplay').textContent} &nbsp;|&nbsp; <strong>Seed:</strong> ${document.getElementById('seedInput').value}</div>
             </div>
             <div>
